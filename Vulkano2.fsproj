@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net5.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>preview</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Remove="VulkanSharp\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="compile_shaders.bat" />
+    <None Include="shaders\ray_march.frag" />
+    <None Include="shaders\quad.vert" />
+    <None Include="shaders\test.frag" />
+    <None Include="shaders\test.vert" />
+    <Compile Include="Helpers.fs" />
+    <Compile Include="LightVulkanWindow.fs" />
+    <Compile Include="LightDevice.fs" />
+    <Compile Include="LightModel.fs" />
+    <Compile Include="LightPipeline.fs" />
+    <Compile Include="LightSwapchain.fs" />
+    <Compile Include="LightApp.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="VulkanSharp\src\Platforms\Windows\Vulkan.Windows.csproj" />
+    <ProjectReference Include="VulkanSharp\src\Vulkan\Vulkan.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="5.0.2-beta.21102.10" />
+  </ItemGroup>
+
+</Project>
