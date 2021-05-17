@@ -109,7 +109,6 @@ type LightPipeline(device: LightDevice, vertPath: string, fragPath: string, conf
                 Layout = config.pipelineLayout,
                 RenderPass = config.renderPass,
                 Subpass = config.subpass)
-        //let cache = device.Device.CreatePipelineCache (new PipelineCacheCreateInfo ())
         match device.Device.CreateGraphicsPipelines (null, [|pipelineInfo|]) with
         | [|pipeline|] -> pipeline
         | _ -> raise (System.Exception "Should exist exactly one graphics pipeline, as requested")

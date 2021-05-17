@@ -9,12 +9,10 @@ open LightDevice
 
 module Vertex =
     let bindingDescriptions =
-        [||]
-        //[|VertexInputBindingDescription (Binding = 0u, Stride = 2u * (uint32 sizeof<float32>), InputRate = VertexInputRate.Vertex)|]
+        [|VertexInputBindingDescription (Binding = 0u, Stride = 2u * (uint32 sizeof<float32>), InputRate = VertexInputRate.Vertex)|]
 
     let attributeDescriptions =
-        [||]
-        //[|VertexInputAttributeDescription (Binding = 0u, Location = 0u, Format = Format.R32G32Sfloat, Offset = 0u)|]
+        [|VertexInputAttributeDescription (Binding = 0u, Location = 0u, Format = Format.R32G32Sfloat, Offset = 0u)|]
 
 type LightModel (device: LightDevice, vertices: (float32*float32)[]) =
     let vertexBuffer, vertexBufferMemory =

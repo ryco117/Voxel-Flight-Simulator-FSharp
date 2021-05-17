@@ -8,27 +8,34 @@ open LightPipeline
 open LightSwapchain
 open LightModel
 
+type PushConstantData = {time: float32}
+
 type LightApp () =
     // Initialize Vulkan processes
     let window = new LightVulkanWindow (600, 400, "Volcano")
     let device = new LightDevice (window)
     let mutable swapchain = new LightSwapchain (device, window.Extent, None)
-    let pipelineLayout = device.Device.CreatePipelineLayout (new PipelineLayoutCreateInfo ())
+    let pipelineLayout =
+        let pushConstantRange = PushConstantRange (StageFlags = ShaderStageFlags.Fragment, Offset = 0u, Size = uint32 sizeof<PushConstantData>)
+        device.Device.CreatePipelineLayout (new PipelineLayoutCreateInfo (PushConstantRanges = [|pushConstantRange|]))
     let createPipeline (swapchain: LightSwapchain) =
         let config = {defaultPipelineConfig () with renderPass = swapchain.RenderPass; pipelineLayout = pipelineLayout}
-        new LightPipeline (device, "shaders/quad.vert.spv", "shaders/ray_march.frag.spv", config)
+        new LightPipeline (device, "shaders/object.vert.spv", "shaders/ray_march.frag.spv", config)
     let mutable pipeline = createPipeline swapchain
     let createCommandBuffers () =
         let info = new CommandBufferAllocateInfo (Level = CommandBufferLevel.Primary, CommandPool = device.CommandPool, CommandBufferCount = uint32 swapchain.ImageCount)
         device.Device.AllocateCommandBuffers info
     let mutable commandBuffers = createCommandBuffers ()
 
-    (*let lightModel =
+    let quadObject =
         let vertices = [|
-            (0.0f, -0.5f)
-            (0.5f, 0.5f)
-            (-0.5f, 0.5f)|]
-        new LightModel (device, vertices)*)
+            (-1.f, -1.f)
+            ( 1.f, -1.f)
+            (-1.f,  1.f)
+            ( 1.f,  1.f)|]
+        new LightModel (device, vertices)
+
+    let upTime = new System.Diagnostics.Stopwatch ()
 
     member _.RecordCommandBuffer i =
         let beginInfo = new CommandBufferBeginInfo ()
@@ -60,9 +67,19 @@ type LightApp () =
 
         pipeline.Bind buff
         // TODO: Dynamically change vertex count appropriately
-        buff.CmdDraw (4u, 1u, 0u, 0u)
-        (*lightModel.Bind buff
-        lightModel.Draw buff*)
+        //buff.CmdDraw (4u, 1u, 0u, 0u)
+        quadObject.Bind buff
+
+        // PushConstant Test
+        let push =
+            let mutable time = float32 upTime.Elapsed.TotalSeconds
+            let ptr = NativeInterop.NativePtr.toNativeInt &&time
+            //System.Runtime.InteropServices.Marsh (structure, ptr, false)
+            ptr
+        buff.CmdPushConstants (pipelineLayout, ShaderStageFlags.Fragment, 0u, uint32 sizeof<PushConstantData>, push)
+        //System.Runtime.InteropServices.Marshal.FreeHGlobal push
+
+        quadObject.Draw buff
 
         buff.CmdEndRenderPass ()
         buff.End ()
@@ -96,12 +113,12 @@ type LightApp () =
                 with
                 | :? ResultException as e when (e.Result = Result.ErrorOutOfDateKhr || e.Result = Result.SuboptimalKhr) -> handleResize ()
             window.Invalidate ()
-
         window.DrawFunction <- Some drawFunc
 
+        upTime.Restart ()
         System.Windows.Forms.Application.Run window
         device.Device.WaitIdle ()
 
     override _.Finalize () =
         device.Device.DestroyPipelineLayout pipelineLayout
-        //(lightModel :> System.IDisposable).Dispose ()
+        (quadObject :> System.IDisposable).Dispose ()

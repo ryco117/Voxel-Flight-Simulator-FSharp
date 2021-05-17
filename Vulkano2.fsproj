@@ -16,10 +16,11 @@
     <None Include="shaders\ray_march.frag" />
     <None Include="shaders\quad.vert" />
     <None Include="shaders\test.frag" />
-    <None Include="shaders\test.vert" />
+    <None Include="shaders\object.vert" />
     <Compile Include="Helpers.fs" />
     <Compile Include="LightVulkanWindow.fs" />
     <Compile Include="LightDevice.fs" />
+    <Compile Include="LightObject.fs" />
     <Compile Include="LightModel.fs" />
     <Compile Include="LightPipeline.fs" />
     <Compile Include="LightSwapchain.fs" />
