@@ -45,9 +45,8 @@ vec4 orbitTrap;
 const float reScale = 0.4;
 const float scale = 1.95;
 const vec3 center = vec3(sqrt(0.5), sqrt(0.3), sqrt(0.2));
-mat3 rotato1 = buildRot3(dirX, 0.25*push.time);
-float tmpDelta = push.time/4.0;
-mat3 rotato2 = buildRot3(dirY, 0.6*abs(round(tmpDelta) - tmpDelta));
+mat3 rotato1 = buildRot3(dirX, 0.15*push.time);
+mat3 rotato2 = buildRot3(dirY, 0.2*cos(push.time/2.0));
 float distanceEstimator(vec3 t, const int iterations)
 {
 	orbitTrap = vec4(1.0, 1.0, 1.0, 1.0);
@@ -93,7 +92,7 @@ vec4 scaleColor(float si, vec3 col) {
 
 vec3 phongLighting(vec3 c, float shadow) {
 	vec3 diffuse = max(dot(normalize(gradient), -lightDir), 0.0) * lightColor;
-	return vec3((ambientLight + diffuse * shadow) * c);
+	return (ambientLight + diffuse * shadow) * c;
 }
 
 const float maxDistance = 8.0;
@@ -116,15 +115,15 @@ void main(void)
 		//float adjustedHitDistance = hitDistance*((1.0 - ratio) + 20.0*ratio);
 		float adjustedHitDistance = hitDistance;
 		if(dist <= adjustedHitDistance) {
-			if(travel <= 0.0) {
+			/*if(travel <= 8.0) {
 				vec4 color = orbitTrap;
-				const float shadowStart = 8.0*hitDistance;
+				const float shadowStart = 10.0*hitDistance;
 				vec3 newPos = pos - shadowStart*lightDir;
 				//vec3 newPos = pos;
 				float shadowDist = 1.0;
 				float shadowTravel = shadowStart;
-				for(int j = 0; j < maxIterations / 2 && shadowTravel < maxShadow; j++) {
-					float dist = max(distanceEstimator(newPos, deMaxIter), 0.0);
+				for(int j = 0; j < maxIterations && shadowTravel < maxShadow; j++) {
+					float dist = distanceEstimator(newPos, deMaxIter);
 					shadowDist = min(shadowDist, dist);
 
 					if (dist <= hitDistance) {
@@ -138,11 +137,11 @@ void main(void)
 				gradient = (vec3(distanceEstimator(pos + epsilon*dirX, deMaxIter), distanceEstimator(pos + epsilon*dirY, deMaxIter), distanceEstimator(pos + epsilon*dirZ, deMaxIter))-dist)/epsilon;
 				fragColor = scaleColor(i, phongLighting(color.xyz, min(shadowDist/shadowStart, 1.0)));
 				//fragColor = scaleColor(i, phongLighting(color.xyz, 1.0));
-			} else {
+			} else {*/
 				vec4 color = orbitTrap;
 				gradient = (vec3(distanceEstimator(pos + epsilon*dirX, deMaxIter), distanceEstimator(pos + epsilon*dirY, deMaxIter), distanceEstimator(pos + epsilon*dirZ, deMaxIter))-dist)/epsilon;
 				fragColor = scaleColor(i, phongLighting(color.xyz, 1.0));
-			}
+			//}
 			return;
 		}
 

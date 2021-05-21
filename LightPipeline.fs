@@ -113,10 +113,15 @@ type LightPipeline(device: LightDevice, vertPath: string, fragPath: string, conf
         | [|pipeline|] -> pipeline
         | _ -> raise (System.Exception "Should exist exactly one graphics pipeline, as requested")
 
+    let mutable disposed = false
+
     member _.Bind (commandBuffer: CommandBuffer) = commandBuffer.CmdBindPipeline (PipelineBindPoint.Graphics, graphicsPipeline)
 
     interface System.IDisposable with
         override _.Dispose () =
-            device.Device.DestroyShaderModule vertModule
-            device.Device.DestroyShaderModule fragModule
-            device.Device.DestroyPipeline graphicsPipeline
+            if not disposed then
+                disposed <- true
+                device.Device.DestroyShaderModule vertModule
+                device.Device.DestroyShaderModule fragModule
+                device.Device.DestroyPipeline graphicsPipeline
+    override self.Finalize () = (self :> System.IDisposable).Dispose ()

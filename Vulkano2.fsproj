@@ -20,8 +20,8 @@
     <Compile Include="Helpers.fs" />
     <Compile Include="LightVulkanWindow.fs" />
     <Compile Include="LightDevice.fs" />
-    <Compile Include="LightObject.fs" />
     <Compile Include="LightModel.fs" />
+    <Compile Include="LightObject.fs" />
     <Compile Include="LightPipeline.fs" />
     <Compile Include="LightSwapchain.fs" />
     <Compile Include="LightApp.fs" />

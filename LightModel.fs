@@ -15,6 +15,7 @@ module Vertex =
         [|VertexInputAttributeDescription (Binding = 0u, Location = 0u, Format = Format.R32G32Sfloat, Offset = 0u)|]
 
 type LightModel (device: LightDevice, vertices: (float32*float32)[]) =
+    let mutable disposed = false
     let vertexBuffer, vertexBufferMemory =
         let count = 2 * vertices.Length
         let buffSize = DeviceSize.op_Implicit (sizeof<float32> * count)
@@ -24,7 +25,7 @@ type LightModel (device: LightDevice, vertices: (float32*float32)[]) =
             match i % 2 with
             | 0 -> fst vertices.[i/2]
             | 1 -> snd vertices.[i/2]
-            | e -> raise (System.ArithmeticException $"Modulo operator failed with imposibility %i{e}"))
+            | e -> raise (System.ArithmeticException $"Modulo operator failed with impossibility %i{e}"))
         Marshal.Copy (data, 0, memPtr, data.Length)
         device.Device.UnmapMemory memory
         buffer, memory
@@ -37,5 +38,8 @@ type LightModel (device: LightDevice, vertices: (float32*float32)[]) =
 
     interface System.IDisposable with
         override _.Dispose () =
-            device.Device.DestroyBuffer vertexBuffer
-            device.Device.FreeMemory vertexBufferMemory
+            if not disposed then
+                disposed <- true
+                device.Device.DestroyBuffer vertexBuffer
+                device.Device.FreeMemory vertexBufferMemory
+    override self.Finalize () = (self :> System.IDisposable).Dispose ()

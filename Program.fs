@@ -2,6 +2,6 @@
 
 [<EntryPoint>]
 let main _ =
-    let app = LightApp ()
+    use app = new LightApp ()
     app.Run ()
     0

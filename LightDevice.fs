@@ -127,12 +127,7 @@ type LightDevice (window: LightVulkanWindow) =
             bit <- bit <<< 1
             r) memProps.MemoryTypes
 
-    override _.Finalize () =
-        logicalDevice.DestroyCommandPool commandPool
-        logicalDevice.Destroy ()
-
-        instance.DestroySurfaceKHR surface
-        instance.Destroy ()
+    let mutable disposed = false
 
     member _.Surface = surface
 
@@ -180,3 +175,14 @@ type LightDevice (window: LightVulkanWindow) =
         let bufferMemory = logicalDevice.AllocateMemory allocInfo
         logicalDevice.BindBufferMemory (buffer, bufferMemory, deviceSizeZero)
         buffer, bufferMemory
+
+    interface System.IDisposable with
+        override _.Dispose () =
+            if not disposed then
+                disposed <- true
+                logicalDevice.DestroyCommandPool commandPool
+                logicalDevice.Destroy ()
+
+                instance.DestroySurfaceKHR surface
+                instance.Destroy ()
+    override self.Finalize () = (self :> System.IDisposable).Dispose ()
