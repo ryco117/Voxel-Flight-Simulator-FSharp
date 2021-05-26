@@ -133,6 +133,8 @@ type LightDevice (window: LightVulkanWindow) =
 
     member _.Device = logicalDevice
 
+    member _.Properties = device.GetProperties ()
+
     member _.GraphicsQueue = graphicsQueue
 
     member _.PresentQueue = presentQueue

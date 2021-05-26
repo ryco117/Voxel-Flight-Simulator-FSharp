@@ -9,7 +9,14 @@ open LightSwapchain
 open LightModel
 open LightObject
 
-type PushConstantData = {time: float32}
+[<System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Explicit)>]
+type PushConstantData =
+    struct
+        [<System.Runtime.InteropServices.FieldOffset 0>]
+        val time: float32
+        new (time') = {time = time'}
+    end
+let pushConstantSize = sizeof<PushConstantData>
 
 type LightApp () =
     // Initialize Vulkan processes
@@ -17,7 +24,8 @@ type LightApp () =
     let device = new LightDevice (window)
     let mutable swapchain = new LightSwapchain (device, window.Extent, None)
     let pipelineLayout =
-        let pushConstantRange = PushConstantRange (StageFlags = ShaderStageFlags.Fragment, Offset = 0u, Size = uint32 sizeof<PushConstantData>)
+        assert (device.Properties.Limits.MaxPushConstantsSize >= uint32 pushConstantSize)
+        let pushConstantRange = PushConstantRange (StageFlags = ShaderStageFlags.Fragment + ShaderStageFlags.Vertex, Offset = 0u, Size = uint32 pushConstantSize)
         device.Device.CreatePipelineLayout (new PipelineLayoutCreateInfo (PushConstantRanges = [|pushConstantRange|]))
     let createPipeline (swapchain: LightSwapchain) =
         let config = {defaultPipelineConfig () with renderPass = swapchain.RenderPass; pipelineLayout = pipelineLayout}
@@ -49,12 +57,10 @@ type LightApp () =
             match obj.Model with
             | None -> ()
             | Some model ->
-                let push =
-                    let mutable time = float32 upTime.Elapsed.TotalSeconds
-                    let ptr = NativeInterop.NativePtr.toNativeInt &&time
-                    //System.Runtime.InteropServices.Marsh (structure, ptr, false)
-                    ptr
-                buffer.CmdPushConstants (pipelineLayout, ShaderStageFlags.Fragment, 0u, uint32 sizeof<PushConstantData>, push)
+                let mutable structure =
+                    let time = float32 upTime.Elapsed.TotalSeconds
+                    PushConstantData (time)
+                buffer.CmdPushConstants (pipelineLayout, ShaderStageFlags.Fragment + ShaderStageFlags.Vertex, 0u, uint32 pushConstantSize, NativeInterop.NativePtr.toNativeInt &&structure)
                 model.Bind buffer
                 model.Draw buffer
 
@@ -131,5 +137,4 @@ type LightApp () =
             if not disposed then
                 disposed <- true
                 device.Device.DestroyPipelineLayout pipelineLayout
-                (device :> System.IDisposable).Dispose ()
     override self.Finalize () = (self :> System.IDisposable).Dispose ()

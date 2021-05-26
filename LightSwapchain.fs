@@ -199,6 +199,8 @@ type LightSwapchain (device: LightDevice, windowExtent: Extent2D, oldSwapchain':
 
     let waitForFence fence = device.Device.WaitForFences ([|fence|], Bool32.op_Implicit true, timeout)
 
+    let mutable disposed = false
+
     member _.RenderPass = renderPass
 
     member _.Swapchain = swapchain
@@ -238,21 +240,24 @@ type LightSwapchain (device: LightDevice, windowExtent: Extent2D, oldSwapchain':
 
     interface System.IDisposable with
         override _.Dispose () =
-            let d = device.Device
-            Array.iter (fun view -> d.DestroyImageView view) swapchainImageViews
+            if not disposed then
+                disposed <- true
+                let d = device.Device
+                Array.iter (fun view -> d.DestroyImageView view) swapchainImageViews
 
-            d.DestroySwapchainKHR swapchain
+                d.DestroySwapchainKHR swapchain
 
-            Array.iteri (fun i img ->
-                d.DestroyImageView depthImageViews.[i]
-                d.DestroyImage img
-                d.FreeMemory depthImageMemories.[i]) depthImages
+                Array.iteri (fun i img ->
+                    d.DestroyImageView depthImageViews.[i]
+                    d.DestroyImage img
+                    d.FreeMemory depthImageMemories.[i]) depthImages
 
-            Array.iter (fun fb -> d.DestroyFramebuffer fb) swapchainFramebuffers
+                Array.iter (fun fb -> d.DestroyFramebuffer fb) swapchainFramebuffers
 
-            d.DestroyRenderPass renderPass
+                d.DestroyRenderPass renderPass
 
-            Array.iteri (fun i fence ->
-                d.DestroySemaphore renderFinishedSemaphores.[i]
-                d.DestroySemaphore imageAvailableSemaphores.[i]
-                d.DestroyFence fence) inFlightFences
+                Array.iteri (fun i fence ->
+                    d.DestroySemaphore renderFinishedSemaphores.[i]
+                    d.DestroySemaphore imageAvailableSemaphores.[i]
+                    d.DestroyFence fence) inFlightFences
+    override self.Finalize () = (self :> System.IDisposable).Dispose ()

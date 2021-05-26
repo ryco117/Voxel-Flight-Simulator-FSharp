@@ -45,8 +45,8 @@ vec4 orbitTrap;
 const float reScale = 0.4;
 const float scale = 1.95;
 const vec3 center = vec3(sqrt(0.5), sqrt(0.3), sqrt(0.2));
-mat3 rotato1 = buildRot3(dirX, 0.15*push.time);
-mat3 rotato2 = buildRot3(dirY, 0.2*cos(push.time/2.0));
+mat3 rotato1 = buildRot3(dirX, 0.15 * push.time);
+mat3 rotato2 = buildRot3(dirY, 0.17*cos((pi/4.0) * push.time));
 float distanceEstimator(vec3 t, const int iterations)
 {
 	orbitTrap = vec4(1.0, 1.0, 1.0, 1.0);
@@ -75,7 +75,8 @@ float distanceEstimator(vec3 t, const int iterations)
 
 		DEfactor *= scale;
 	}
-	return (sqrt(r2) - 2.0) / DEfactor / reScale;
+	//return (sqrt(r2) - 2.0) / DEfactor / reScale;
+	return (max(max(abs(s.x), abs(s.y)), abs(s.z)) - 0.8) / DEfactor / reScale;
 	/*/
 	return length(vec3(bound(t.x, 3.0), bound(t.y, 3.0), bound(t.z, 4.0))) - 0.4;//*/
 }
@@ -95,7 +96,7 @@ vec3 phongLighting(vec3 c, float shadow) {
 	return (ambientLight + diffuse * shadow) * c;
 }
 
-const float maxDistance = 8.0;
+const float maxDistance = 6.0;
 const float fov = pi/1.9 / 2.0;
 const float minTravel = 0.2;
 const float hitDistance = epsilon;
@@ -108,7 +109,7 @@ void main(void)
 	float travel = minTravel;
 	for(int i = 0; i < maxIterations; i++) {
 		//int deMaxIter = int(5.0 * pow(1.0 - travel/maxDistance, 0.8) + 5.0);
-		int deMaxIter = 8;
+		int deMaxIter = 7;
 		float dist = distanceEstimator(pos, deMaxIter);
 
 		//float ratio = travel / maxDistance;
