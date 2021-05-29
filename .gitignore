@@ -3,3 +3,8 @@
 ################################################################################
 
 /bin
+/obj
+/Properties/launchSettings.json
+/.vs/Vulkano2
+/compile_shaders.bat
+*.spv
