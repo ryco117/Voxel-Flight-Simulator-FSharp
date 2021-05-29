@@ -4,7 +4,9 @@ open Vulkan
 
 open LightDevice
 
-type LightSwapchain (device: LightDevice, windowExtent: Extent2D, oldSwapchain': LightSwapchain option) =
+let maxFramesInFlight = 3
+
+type LightSwapchain (device: LightDevice, oldSwapchain': LightSwapchain option) =
     let mutable oldSwapchain = oldSwapchain'
     // Create Swapchain first
     let swapchain, swapchainImageFormat, swapchainExtent =
@@ -65,7 +67,7 @@ type LightSwapchain (device: LightDevice, windowExtent: Extent2D, oldSwapchain':
 
     let imageCount = swapchainImages.Length
     
-    let depthFormat =
+    let swapchainDepthFormat =
         device.FindSupportedFormat
             [|Format.D32Sfloat; Format.D32SfloatS8Uint; Format.D24UnormS8Uint|]
             ImageTiling.Optimal
@@ -79,7 +81,7 @@ type LightSwapchain (device: LightDevice, windowExtent: Extent2D, oldSwapchain':
     let renderPass =
         let depthAttachment =
             AttachmentDescription (
-                Format = depthFormat,
+                Format = swapchainDepthFormat,
                 Samples = SampleCountFlags.Count1,
                 LoadOp = AttachmentLoadOp.Clear,
                 StoreOp = AttachmentStoreOp.DontCare,
@@ -113,11 +115,11 @@ type LightSwapchain (device: LightDevice, windowExtent: Extent2D, oldSwapchain':
         let dependency =
             SubpassDependency (
                 DstSubpass = 0u,
-                DstAccessMask = AccessFlags.ColorAttachmentWrite,
-                DstStageMask = PipelineStageFlags.ColorAttachmentOutput,
+                DstAccessMask = AccessFlags.ColorAttachmentWrite + AccessFlags.DepthStencilAttachmentWrite,
+                DstStageMask = PipelineStageFlags.ColorAttachmentOutput + PipelineStageFlags.EarlyFragmentTests,
                 SrcSubpass = subpassExternal,
                 SrcAccessMask = accessNone,
-                SrcStageMask = PipelineStageFlags.ColorAttachmentOutput)
+                SrcStageMask = PipelineStageFlags.ColorAttachmentOutput + PipelineStageFlags.EarlyFragmentTests)
         let attachments = [|colourAttachment; depthAttachment|]
         let renderPassInfo =
             new RenderPassCreateInfo (
@@ -139,7 +141,7 @@ type LightSwapchain (device: LightDevice, windowExtent: Extent2D, oldSwapchain':
                 Extent = extent,
                 MipLevels = 1u,
                 ArrayLayers = 1u,
-                Format = depthFormat,
+                Format = swapchainDepthFormat,
                 Tiling = ImageTiling.Optimal,
                 InitialLayout = ImageLayout.Undefined,
                 Usage = ImageUsageFlags.DepthStencilAttachment,
@@ -153,7 +155,7 @@ type LightSwapchain (device: LightDevice, windowExtent: Extent2D, oldSwapchain':
                 new ImageViewCreateInfo (
                     Image = img,
                     ViewType = ImageViewType.View2D,
-                    Format = depthFormat,
+                    Format = swapchainDepthFormat,
                     SubresourceRange =
                         ImageSubresourceRange (
                             AspectMask = ImageAspectFlags.Depth,
@@ -176,7 +178,6 @@ type LightSwapchain (device: LightDevice, windowExtent: Extent2D, oldSwapchain':
         device.Device.CreateFramebuffer info)
 
     // Step 6: Create Sync Objects
-    let maxFramesInFlight = 3
     let imagesInFlight = Array.zeroCreate<Fence> imageCount
     let imageAvailableSemaphores, renderFinishedSemaphores, inFlightFences =
         let semaphoreInfo = new SemaphoreCreateInfo ()
@@ -237,6 +238,12 @@ type LightSwapchain (device: LightDevice, windowExtent: Extent2D, oldSwapchain':
                 ImageIndices = [|uint32 imageIndex|])
         device.PresentQueue.PresentKHR presentInfo
         currentFrame <- (currentFrame + 1) % maxFramesInFlight
+
+    member _.DepthFormat = swapchainDepthFormat
+    member _.ImageFormat = swapchainImageFormat
+    member _.CompareSwapFormats (swapchain': LightSwapchain) =
+        // TODO: Is possible for more subtle differences to occur, but given current contstruction of render pass this will suffice
+        swapchain'.DepthFormat = swapchainDepthFormat && swapchain'.ImageFormat = swapchainImageFormat
 
     interface System.IDisposable with
         override _.Dispose () =

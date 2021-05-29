@@ -14,16 +14,21 @@
   <ItemGroup>
     <None Include="compile_shaders.bat" />
     <None Include="shaders\ray_march.frag" />
+    <None Include="shaders\ray_march_voxels.frag" />
     <None Include="shaders\quad.vert" />
     <None Include="shaders\test.frag" />
     <None Include="shaders\object.vert" />
     <Compile Include="Helpers.fs" />
-    <Compile Include="LightVulkanWindow.fs" />
-    <Compile Include="LightDevice.fs" />
-    <Compile Include="LightModel.fs" />
-    <Compile Include="LightObject.fs" />
-    <Compile Include="LightPipeline.fs" />
-    <Compile Include="LightSwapchain.fs" />
+    <Compile Include="Maths.fs" />
+    <Compile Include="Voxels.fs" />
+    <Compile Include="VulkanWindow.fs" />
+    <Compile Include="Device.fs" />
+    <Compile Include="Model.fs" />
+    <Compile Include="Object.fs" />
+    <Compile Include="Pipeline.fs" />
+    <Compile Include="Swapchain.fs" />
+    <Compile Include="Renderer.fs" />
+    <Compile Include="RenderSystem.fs" />
     <Compile Include="LightApp.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
