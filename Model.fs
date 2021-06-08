@@ -1,6 +1,5 @@
 ﻿module LightModel
 
-open System.Numerics
 open System.Runtime.InteropServices
 open Vulkan
 

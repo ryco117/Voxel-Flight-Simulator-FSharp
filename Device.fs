@@ -7,7 +7,7 @@ open Helpers
 open LightVulkanWindow
 
 let DEBUG = true
-let validationLayers = if DEBUG then [|"VK_LAYER_KHRONOS_validation"|] else [||]
+let validationLayers = if DEBUG then [|"VK_LAYER_KHRONOS_validation"|] else Array.empty
 let deviceExtensions = [|(*Extension.KhrSwapchain*) "VK_KHR_swapchain"|]
 let requiredInstanceExtensions =
     if DEBUG then
@@ -167,7 +167,7 @@ type LightDevice (window: LightVulkanWindow) =
                 Size = size,
                 Usage = usage,
                 SharingMode = SharingMode.Exclusive,
-                QueueFamilyIndices = [||])
+                QueueFamilyIndices = Array.empty)
         let buffer = logicalDevice.CreateBuffer bufferInfo
         let memRequirements = logicalDevice.GetBufferMemoryRequirements buffer
         use allocInfo =

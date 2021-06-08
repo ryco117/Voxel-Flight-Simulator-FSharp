@@ -1,7 +1,5 @@
 ﻿module LightApp
 
-open Vulkan
-
 open LightVulkanWindow
 open LightDevice
 open LightRenderer
