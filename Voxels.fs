@@ -17,8 +17,7 @@ type Voxel = {
     nodeBTR: GraphRef<Voxel> // Back-Top-Right
     nodeBBL: GraphRef<Voxel> // Back-Bottom-Left
     nodeBBR: GraphRef<Voxel> // Back-Bottom-Right
-    flags: uint32    // TODO: Support more flags than leaf bit
-}
+    flags: uint32    (*TODO: Support more flags than leaf bit*)}
 
 let emptyLeafVoxel = {
     averageColour = Vector4.Zero
@@ -113,43 +112,50 @@ let generateSparseVoxelOctree n =
         randomLeaf ()
         |> queue.Enqueue
     while queue.Count > 1 do
-        let mutable colour = Vector4 (0.f)
-        let mutable weight = 0.f
-        let popNodeOption () =
-            let randomType = Helpers.random.NextDouble ()
-            if queue.Count = 0 then
-                if randomType > 0.75 then
-                    Self
-                else
-                    Empty
-            else
-                if randomType > 0.4 then
+        let rec rollVoxel () =
+            let mutable popped = false
+            let mutable colour = Vector4 (0.f)
+            let mutable weight = 0.f
+            let popNodeOption () =
+                let randomType = Helpers.random.NextDouble ()
+                if queue.Count = 0 then
                     if randomType > 0.75 then
                         Self
                     else
-                        let voxel = queue.Dequeue ()
-                        weight <- weight + 1.f
-                        colour.AddInPlace voxel.averageColour
-                        Ref voxel
+                        Empty
                 else
-                    Empty
+                    if randomType > 0.45 then
+                        if randomType > 0.825 then
+                            Self
+                        else
+                            let voxel = queue.Dequeue ()
+                            weight <- weight + 1.f
+                            colour.AddInPlace voxel.averageColour
+                            popped <- true
+                            Ref voxel
+                    else
+                        Empty
 
-        let ftl = popNodeOption ()
-        let ftr = popNodeOption ()
-        let fbl = popNodeOption ()
-        let fbr = popNodeOption ()
-        let btl = popNodeOption ()
-        let btr = popNodeOption ()
-        let bbl = popNodeOption ()
-        let bbr = popNodeOption ()
-        {
-            averageColour = if weight = 0.f then randomColour () else colour / weight
-            nodeFTL = ftl; nodeFTR = ftr
-            nodeFBL = fbl; nodeFBR = fbr
-            nodeBTL = btl; nodeBTR = btr
-            nodeBBL = bbl; nodeBBR = bbr
-            flags = 0u
-        }
+            let ftl = popNodeOption ()
+            let ftr = popNodeOption ()
+            let fbl = popNodeOption ()
+            let fbr = popNodeOption ()
+            let btl = popNodeOption ()
+            let btr = popNodeOption ()
+            let bbl = popNodeOption ()
+            let bbr = popNodeOption ()
+            if popped then
+                {
+                    averageColour = if weight = 0.f then randomColour () else colour / weight
+                    nodeFTL = ftl; nodeFTR = ftr
+                    nodeFBL = fbl; nodeFBR = fbr
+                    nodeBTL = btl; nodeBTR = btr
+                    nodeBBL = bbl; nodeBBR = bbr
+                    flags = 0u
+                }
+            else
+                rollVoxel ()
+        rollVoxel ()
         |> queue.Enqueue
     queue.Dequeue ()
     |> compactOctreeFromRoot

@@ -6,13 +6,17 @@ open LightRenderer
 open LightRenderSystem
 open LightModel
 open LightObject
+open LightState
 
 type LightApp () =
     let window = new LightVulkanWindow (600, 400, "Volcano")
     let device = new LightDevice (window)
     let renderer = new LightRenderer (window, device)
 
-    let gameObjects =
+    
+    let mutable state = {
+        upTime = System.Diagnostics.Stopwatch.StartNew ()
+        gameObjects =
         let quadObject =
             let vertices = [|
                 (-1.f, -1.f)
@@ -21,7 +25,7 @@ type LightApp () =
                 ( 1.f,  1.f)|]
             let model = new LightModel (device, vertices)
             LightObject (Model = Some model)
-        [|quadObject|]
+        [|quadObject|]}
 
     let mutable disposed = false
 
@@ -32,7 +36,7 @@ type LightApp () =
             match renderer.BeginFrame () with
             | Some commandBuffer ->
                 renderer.BeginSwapchainRenderPass commandBuffer
-                renderSystem.RenderGameObjects commandBuffer gameObjects
+                renderSystem.RenderGameObjects commandBuffer state
                 renderer.EndSwapchainRenderPass commandBuffer
                 renderer.EndFrame ()
             | None -> ()

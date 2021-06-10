@@ -16,7 +16,6 @@
     <None Include="shaders\ray_march.frag" />
     <None Include="shaders\ray_march_voxels.frag" />
     <None Include="shaders\quad.vert" />
-    <None Include="shaders\test.frag" />
     <None Include="shaders\object.vert" />
     <Compile Include="Helpers.fs" />
     <Compile Include="Maths.fs" />
@@ -25,6 +24,7 @@
     <Compile Include="Device.fs" />
     <Compile Include="Model.fs" />
     <Compile Include="Object.fs" />
+    <Compile Include="State.fs" />
     <Compile Include="Pipeline.fs" />
     <Compile Include="Swapchain.fs" />
     <Compile Include="Renderer.fs" />
