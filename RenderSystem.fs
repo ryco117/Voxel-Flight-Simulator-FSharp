@@ -7,10 +7,33 @@ open LightPipeline
 open LightState
 open Voxels
 
+[<System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Explicit)>]
+type PushConstantData =
+    struct
+        [<System.Runtime.InteropServices.FieldOffset 0>]
+        val cameraPosition: System.Numerics.Vector3
+        [<System.Runtime.InteropServices.FieldOffset 12>]
+        val time: float32
+        [<System.Runtime.InteropServices.FieldOffset 16>]
+        val cameraQuaternion: System.Numerics.Vector4
+        [<System.Runtime.InteropServices.FieldOffset 32>]
+        val lightDir: System.Numerics.Vector3
+        new (cameraPosition', time') = {
+            cameraPosition = cameraPosition'
+            time = time'
+            cameraQuaternion =
+                let delta = time' / 32.f
+                System.Numerics.Vector4(0.f, sin delta, 0.f, cos delta)
+            lightDir =
+                let delta = time' / -2.f
+                System.Numerics.Vector3(0.8f * sin delta, 0.6f, 0.8f * cos delta)}
+    end
+let pushConstantSize = sizeof<PushConstantData>
+
 type LightRenderSystem (device: LightDevice, initialRenderPass: RenderPass) =
 
     // Create Shader Storage Buffer to contain a sparse-voxel-octree
-    let voxelData = generateSparseVoxelOctree 500_000
+    let voxelData = generateSparseVoxelOctree 8192
     let voxelBufferDeviceSize = DeviceSize.op_Implicit (sizeof<VoxelCompact> * voxelData.Length)
     let voxelBuffer, voxelBufferMemory =
         let buffer, memory = device.CreateBuffer voxelBufferDeviceSize BufferUsageFlags.StorageBuffer (MemoryPropertyFlags.HostVisible + MemoryPropertyFlags.HostCoherent)

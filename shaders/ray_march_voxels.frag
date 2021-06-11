@@ -6,6 +6,7 @@ layout (location = 0) out vec4 fragColor;
 layout (push_constant) uniform Push {
 	vec3 cameraPosition;
 	float time;
+	vec4 cameraQuaternion;
 	vec3 lightDir;
 } push;
 
@@ -29,7 +30,7 @@ layout(set = 0, binding = 0) readonly buffer VoxelOctree {
 
 const float pi = 3.14159265358;
 const float e = 2.718281828;
-const int maxIterations = 75;
+const int maxIterations = 60;
 const float epsilon = 0.0001;
 const float unitEpsilon = 1.0 + epsilon;
 const vec3 dirX = vec3(1.0, 0.0, 0.0);
@@ -39,13 +40,12 @@ const vec3 negDirX = vec3(-1.0, 0.0, 0.0);
 const vec3 negDirY = vec3(0.0, -1.0, 0.0);
 const vec3 negDirZ = vec3(0.0, 0.0, -1.0);
 
-const vec4 fogColour = vec4(0.2, 0.7, 0.3, 1.0);
+const vec4 fogColour = vec4(0.42, 0.525, 0.45, 1.0);
 const vec4 skyColour = vec4(0.1, 0.2, 0.65, 1.0);
 const vec4 groundColour = vec4(0.5, 0.45, 0.475, 1.0);
 
 // Phong lighting
 const float ambientStrength = 0.35;
-//const vec3 lightDir = normalize(vec3(-1.0, 1.0, -0.2));
 const vec3 lightColor = vec3(0.9, 0.9, 0.9);
 const vec3 ambientLight = ambientStrength * lightColor;
 
@@ -57,6 +57,11 @@ const vec3 btlCell = vec3(-0.5, 0.5, 0.5);
 const vec3 btrCell = vec3(0.5, 0.5, 0.5);
 const vec3 bblCell = vec3(-0.5, -0.5, 0.5);
 const vec3 bbrCell = vec3(0.5, -0.5, 0.5);
+
+vec3 rotateByQuaternion(vec3 v, vec4 q)
+{
+	return v + 2.0*cross(q.xyz, cross(q.xyz, v) + q.w * v);
+}
 
 vec3 cubeNorm(vec3 t) {
 	vec3 s = abs(t);
@@ -220,13 +225,8 @@ float castShadowRay(vec3 p, vec3 d, int maxDepth) {
 const float maxBrightness = 1.3;
 const float maxBrightnessR2 = maxBrightness*maxBrightness;
 vec4 scaleColor(float si, vec4 col) {
-	//col *= pow(1.0 - si/float(maxIterations), 5.0);
-	/*if(dot(col, col) > maxBrightnessR2) {
-		col = maxBrightness*normalize(col);
-	}*/
-	//return vec4(col, 1.0);
 	float temp = 1.0 - si/float(maxIterations);
-	return mix(fogColour, col, temp*temp);
+	return mix(fogColour, col, temp*temp*temp);
 }
 
 vec3 gradient;
@@ -235,18 +235,22 @@ vec3 phongLighting(vec3 c, float shadow) {
 	return (ambientLight + diffuse * shadow) * c;
 }
 
+vec4 escapeColour(vec3 d) {
+	float temp = dot(dirY, d);
+	vec4 groundSkyColour = mix(groundColour, skyColour, (sqrt(abs(temp))*sign(temp) + 1.0)/2.0);
+	return mix(groundSkyColour, vec4(lightColor, 1.0), clamp(64.0*dot(d, push.lightDir) - 63.0, 0.0, 1.0));
+}
+
 vec4 castVoxelRay(vec3 p, vec3 d) {
 	gradient = vec3(0.0);
-	float temp = dot(dirY, d);
-	vec4 escapeColour = mix(groundColour, skyColour, (sqrt(abs(temp))*sign(temp) + 1.0)/2.0);
 	float travelDist = 0.0;
-	if(!projectToRootVoxel(p, d, travelDist)) return mix(escapeColour, vec4(lightColor, 1.0), clamp(32.0*dot(d, push.lightDir) - 31.0, 0.0, 1.0));
+	if(!projectToRootVoxel(p, d, travelDist)) return escapeColour(d);
 
 	int i = 0;
 	do {
 		vec3 s = p;
 		float scale = 1.0;
-		int maxDepth = clamp(9 - int(1.4427*log(travelDist)), 3, 12);
+		int maxDepth = clamp(10 - int(1.4427*log(travelDist)), 3, 12);
 		uint index = voxelIndex(s, scale, maxDepth);
 		//uint index = voxelIndex(s, scale, 9);
 
@@ -265,18 +269,15 @@ vec4 castVoxelRay(vec3 p, vec3 d) {
 			//return vec4(phongLighting(voxelOctree.voxels[index].averageColour.xyz, castShadowRay(p, push.lightDir, maxDepth)), 1.0);
 		}
 	} while(insideCube(p) && ++i < maxIterations);
-	return mix(scaleColor(i, escapeColour), vec4(lightColor, 1.0), clamp(32.0*dot(d, push.lightDir) - 31.0, 0.0, 1.0));
+	return scaleColor(i, escapeColour(d));
 }
 
 const float fov = pi/1.9 / 2.0;
 void main(void) {
 	float dy = cos(0.6*coord.y*fov);
 	vec3 direction = vec3(sin(coord.x*fov)*dy, -sin(0.6*coord.y*fov), cos(coord.x*fov)*dy);
+	direction = rotateByQuaternion(direction, push.cameraQuaternion);
 	vec3 pos = push.cameraPosition;
 
-	float delta = push.time / 16.0;
-	float sdelta = sin(delta);
-	float cdelta = cos(delta);
-	direction.xz = vec2(cdelta*direction.x + sdelta*direction.z, cdelta*direction.z - sdelta*direction.x);
 	fragColor = castVoxelRay(pos, direction);
 }

@@ -39,20 +39,23 @@ type LightVulkanWindow (width: int, height: int, title: string) as self =
         with get () = drawFunction
         and set func = drawFunction <- func
 
+    member _.ToggleFullscreen () =
+        fullscreen <- not fullscreen
+        if fullscreen then
+            let width, height = primaryScreenDimensions ()
+            self.FormBorderStyle <- FormBorderStyle.None
+            self.WindowState <- FormWindowState.Normal
+            self.Extent <- Extent2D (Width = uint32 width, Height = uint32 height)
+            self.Bounds <- Screen.PrimaryScreen.Bounds
+        else
+            self.FormBorderStyle <- FormBorderStyle.Sizable
+            self.Extent <- Extent2D (Width = uint32 width, Height = uint32 height)
+            
+    // TODO: Refactor logic so key controls aren't governed by Window class
     override _.OnKeyDown args =
         match args.KeyCode with
         | Keys.Escape -> exit 0
-        | Keys.F11 ->
-            fullscreen <- not fullscreen
-            if fullscreen then
-                let width, height = primaryScreenDimensions ()
-                self.FormBorderStyle <- FormBorderStyle.None
-                self.WindowState <- FormWindowState.Normal
-                self.Extent <- Extent2D (Width = uint32 width, Height = uint32 height)
-                self.Bounds <- Screen.PrimaryScreen.Bounds
-            else
-                self.FormBorderStyle <- FormBorderStyle.Sizable
-                self.Extent <- Extent2D (Width = uint32 width, Height = uint32 height)
+        | Keys.F11 -> self.ToggleFullscreen ()
         | _ -> base.OnKeyDown args
 
     override _.OnPaintBackground _ = ()

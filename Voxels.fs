@@ -2,9 +2,13 @@
 
 open Maths
 
+type RecursiveRef =
+| Self
+| Parent of RecursiveRef
+
 type GraphRef<'a> =
 | Ref of 'a
-| Self
+| Recurse of RecursiveRef
 | Empty
 
 type Voxel = {
@@ -21,8 +25,8 @@ type Voxel = {
 
 let emptyLeafVoxel = {
     averageColour = Vector4.Zero
-    nodeFTL = Self; nodeFTR = Self; nodeFBL = Self; nodeFBR = Self
-    nodeBTL = Self; nodeBTR = Self; nodeBBL = Self; nodeBBR = Self
+    nodeFTL = Recurse Self; nodeFTR = Recurse Self; nodeFBL = Recurse Self; nodeFBR = Recurse Self
+    nodeBTL = Recurse Self; nodeBTR = Recurse Self; nodeBBL = Recurse Self; nodeBBR = Recurse Self
     flags = 1u}
 
 [<System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Explicit)>]
@@ -75,9 +79,15 @@ let compactOctreeFromRoot rootVoxel =
     let dictionary = System.Collections.Generic.Dictionary<Voxel, uint32> ()
     let rec breadthFirstSearchOctree acc selfIndex = function
     | [] -> acc
-    | voxel::tail ->
+    | (voxel, parentList)::tail ->
         let refToIndex toExplore = function
-        | Self -> selfIndex, toExplore
+        | Recurse Self -> selfIndex, toExplore
+        | Recurse (Parent vxls) ->
+            let rec func = function
+            | _::indexTail, Parent vxls -> func (indexTail, vxls)
+            | pIndex::_, Self -> pIndex, toExplore
+            | [], _ -> 0u, toExplore    // Default to root index if we requested a parent past the root
+            func (parentList, vxls)
         | Empty -> nullVoxelIndex, toExplore
         | Ref voxel ->
             if dictionary.ContainsKey voxel then
@@ -85,7 +95,7 @@ let compactOctreeFromRoot rootVoxel =
             else
                 nodeIndex <- nodeIndex + 1u
                 dictionary.Item voxel <- nodeIndex
-                nodeIndex, voxel::toExplore
+                nodeIndex, (voxel, selfIndex::parentList)::toExplore
 
         let colour = voxel.averageColour
         let ftl, bfs = refToIndex [] voxel.nodeFTL
@@ -98,7 +108,7 @@ let compactOctreeFromRoot rootVoxel =
         let bbr, bfs = refToIndex bfs voxel.nodeBBR
         let compactVoxel = VoxelCompact (colour, ftl, ftr, fbl, fbr, btl, btr, bbl, bbr, voxel.flags)
         breadthFirstSearchOctree (compactVoxel::acc) (selfIndex + 1u) (List.append (List.rev bfs) tail)
-    breadthFirstSearchOctree [] 0u [rootVoxel]
+    breadthFirstSearchOctree [] 0u [rootVoxel, []]
     |> List.rev
     |> List.toArray
 
@@ -107,6 +117,14 @@ let generateSparseVoxelOctree n =
     let randomLeaf () =
         let colour = randomColour ()
         {emptyLeafVoxel with averageColour = colour}
+    let rec randomRecurse maxDepth =
+        if maxDepth > 0 && Helpers.random.NextDouble () > 0.85 then
+            Parent (randomRecurse (maxDepth - 1))
+        else
+            Self
+    let maxRecurseDepth =
+        log (float n) / log 2.
+        |> int
     let queue = System.Collections.Generic.Queue ()
     for _ = 0 to (int n - 1) do
         randomLeaf ()
@@ -119,14 +137,14 @@ let generateSparseVoxelOctree n =
             let popNodeOption () =
                 let randomType = Helpers.random.NextDouble ()
                 if queue.Count = 0 then
-                    if randomType > 0.75 then
-                        Self
+                    if randomType > 0.69 then
+                        Recurse (randomRecurse maxRecurseDepth)
                     else
                         Empty
                 else
                     if randomType > 0.45 then
                         if randomType > 0.825 then
-                            Self
+                            Recurse (randomRecurse maxRecurseDepth)
                         else
                             let voxel = queue.Dequeue ()
                             weight <- weight + 1.f
