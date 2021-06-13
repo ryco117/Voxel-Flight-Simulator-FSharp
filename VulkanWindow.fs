@@ -16,6 +16,7 @@ type LightVulkanWindow (width: int, height: int, title: string) as self =
     do self.UpdateStyles ()
     
     let mutable (drawFunction: (unit -> unit) option) = None
+    let mutable (handleInputFunction: (KeyEventArgs -> unit) option) = None
     let mutable resized = false
     do self.Resize.Add(fun _args -> resized <- true)
 
@@ -39,6 +40,10 @@ type LightVulkanWindow (width: int, height: int, title: string) as self =
         with get () = drawFunction
         and set func = drawFunction <- func
 
+    member _.HandleInputFunction
+        with get () = handleInputFunction
+        and set func = handleInputFunction <- func
+
     member _.ToggleFullscreen () =
         fullscreen <- not fullscreen
         if fullscreen then
@@ -51,12 +56,10 @@ type LightVulkanWindow (width: int, height: int, title: string) as self =
             self.FormBorderStyle <- FormBorderStyle.Sizable
             self.Extent <- Extent2D (Width = uint32 width, Height = uint32 height)
             
-    // TODO: Refactor logic so key controls aren't governed by Window class
     override _.OnKeyDown args =
-        match args.KeyCode with
-        | Keys.Escape -> exit 0
-        | Keys.F11 -> self.ToggleFullscreen ()
-        | _ -> base.OnKeyDown args
+        match handleInputFunction with
+        | Some func -> func args
+        | None -> ()
 
     override _.OnPaintBackground _ = ()
 

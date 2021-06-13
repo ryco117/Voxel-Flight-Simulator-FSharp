@@ -31,16 +31,16 @@ type PushConstantData =
 let pushConstantSize = sizeof<PushConstantData>
 
 type LightRenderSystem (device: LightDevice, initialRenderPass: RenderPass) =
-
-    // Create Shader Storage Buffer to contain a sparse-voxel-octree
-    let voxelData = generateSparseVoxelOctree 8192
-    let voxelBufferDeviceSize = DeviceSize.op_Implicit (sizeof<VoxelCompact> * voxelData.Length)
-    let voxelBuffer, voxelBufferMemory =
+     // Create Shader Storage Buffer to contain a sparse-voxel-octree
+    let mutable voxelData = generateSparseVoxelOctree 8192
+    let createVoxelBufferMemory (voxelData: VoxelCompact[]) =
+        let voxelBufferDeviceSize = DeviceSize.op_Implicit (sizeof<VoxelCompact> * voxelData.Length)
         let buffer, memory = device.CreateBuffer voxelBufferDeviceSize BufferUsageFlags.StorageBuffer (MemoryPropertyFlags.HostVisible + MemoryPropertyFlags.HostCoherent)
         let memPtr = device.Device.MapMemory (memory, Helpers.deviceSizeZero, voxelBufferDeviceSize)
         Helpers.MarshalArrayOfStruct voxelData memPtr
         device.Device.UnmapMemory memory
-        buffer, memory
+        buffer, memory, voxelBufferDeviceSize
+    let mutable voxelBuffer, voxelBufferMemory, voxelBufferDeviceSize = createVoxelBufferMemory voxelData
 
     let descriptorPool =
         use poolInfo =
@@ -73,7 +73,7 @@ type LightRenderSystem (device: LightDevice, initialRenderPass: RenderPass) =
         | [|descriptorSet|] -> descriptorSet
         | _ -> raise (System.Exception "Exactly one descriptor set is expected to be created")
 
-    do (*Update Descriptor Sets*)
+    let updateDescriptorSets () =
         use buffInfo =
             new DescriptorBufferInfo (
                 Buffer = voxelBuffer,
@@ -86,6 +86,7 @@ type LightRenderSystem (device: LightDevice, initialRenderPass: RenderPass) =
                 DescriptorType = DescriptorType.StorageBuffer,
                 BufferInfo = [|buffInfo|])
         device.Device.UpdateDescriptorSets ([|setWrite|], null)
+    do updateDescriptorSets ()
 
     let pipelineLayout =
         assert (device.Properties.Limits.MaxPushConstantsSize >= uint32 pushConstantSize)
@@ -102,6 +103,19 @@ type LightRenderSystem (device: LightDevice, initialRenderPass: RenderPass) =
     let mutable pipeline = createPipeline initialRenderPass
 
     let mutable disposed = false
+
+    member _.RegenerateWorld () =
+        device.Device.WaitIdle ()   // Cannot delete buffer while device is using it ;)
+        device.Device.DestroyBuffer voxelBuffer
+        device.Device.FreeMemory voxelBufferMemory
+
+        voxelData <- generateSparseVoxelOctree 8192
+        match createVoxelBufferMemory voxelData with
+        | buffer, memory, deviceSize ->
+            voxelBuffer <- buffer
+            voxelBufferMemory <- memory
+            voxelBufferDeviceSize <- deviceSize
+        updateDescriptorSets ()
 
     member _.RenderGameObjects buffer (state: LightState) =
         pipeline.Bind buffer
