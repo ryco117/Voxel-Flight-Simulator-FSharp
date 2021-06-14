@@ -27,14 +27,14 @@ type PushConstantData =
                 let delta = time' / 32.f
                 Maths.Vector4 (0.f, sin delta, 0.f, cos delta)
             lightDir =
-                let delta = time' / -2.f
+                let delta = time' / -15.f
                 System.Numerics.Vector3 (0.8f * sin delta, 0.6f, 0.8f * cos delta)}
         new (cameraPosition', cameraQuaternion', time') = {
             cameraPosition = cameraPosition'
             time = time'
             cameraQuaternion = cameraQuaternion'
             lightDir =
-                let delta = time' / -2.f
+                let delta = time' / -15.f
                 System.Numerics.Vector3 (0.8f * sin delta, 0.6f, 0.8f * cos delta)}
     end
 let pushConstantSize = sizeof<PushConstantData>
@@ -112,6 +112,8 @@ type LightRenderSystem (device: LightDevice, initialRenderPass: RenderPass) =
     let mutable pipeline = createPipeline initialRenderPass
 
     let mutable disposed = false
+
+    member _.VoxelData = voxelData
 
     member _.RegenerateWorld () =
         device.Device.WaitIdle ()   // Cannot delete buffer while device is using it ;)

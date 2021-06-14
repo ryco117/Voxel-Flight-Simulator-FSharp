@@ -17,7 +17,8 @@ let newDefaultState () = {
     keyRightInput = 0.f
     keyBackInput = 0.f
     lastFrameTime = 0.
-    playerPosition = System.Numerics.Vector3 (0.f, 0.125f, -3.f)
+    lastSpeed = 0.f
+    playerPosition = System.Numerics.Vector3 (0.f, 0.125f, -2.5f)
     playerQuaternion = Maths.Vector4.UnitQuaternion
     upTime = System.Diagnostics.Stopwatch.StartNew ()
     gameObjects = Array.empty}
@@ -40,32 +41,35 @@ type LightApp () =
                     LightObject (Model = Some model)
                 [|quadObject|]}
 
-    let speed = 0.1875f
-    let updateState () =
-        if state.demoControls then
-            state <- {state with lastFrameTime = state.upTime.Elapsed.TotalSeconds}
-        else
-            let deltaTime =
-                state.upTime.Elapsed.TotalSeconds - state.lastFrameTime
-                |> float32
-            let forward =
-                speed * System.Numerics.Vector3.UnitZ
-                |> state.playerQuaternion.RotateVectorAsQuaternion
-            let roll = Maths.Vector4.BuildQuaternion System.Numerics.Vector3.UnitZ (deltaTime * (state.keyLeftInput - state.keyRightInput))
-            let pitch = Maths.Vector4.BuildQuaternion System.Numerics.Vector3.UnitX (0.375f * deltaTime * (state.keyForwardInput - state.keyBackInput))
-            let deltaP = deltaTime*forward
-            state <-
-                {state with
-                    lastFrameTime = state.upTime.Elapsed.TotalSeconds
-                    playerPosition = state.playerPosition + deltaP
-                    playerQuaternion =
-                        pitch.QuaternionMultiply roll
-                        |> state.playerQuaternion.QuaternionMultiply}
-
     let mutable disposed = false
 
     member _.Run () =
         let renderSystem = new LightRenderSystem (device, renderer.SwapchainRenderPass)
+        let updateState () =
+            if state.demoControls then
+                state <- {state with lastFrameTime = state.upTime.Elapsed.TotalSeconds}
+            else
+                let deltaTime =
+                    state.upTime.Elapsed.TotalSeconds - state.lastFrameTime
+                    |> float32
+                let newSpeed =
+                    let defaultSpeed = 0.2f
+                    let frac = exp (-2.5f * deltaTime)
+                    frac * state.lastSpeed + (1.f - frac) * defaultSpeed * System.MathF.Pow (Voxels.octreeScale state.playerPosition renderSystem.VoxelData, 0.425f)
+                let forward =
+                    newSpeed * System.Numerics.Vector3.UnitZ
+                    |> state.playerQuaternion.RotateVectorAsQuaternion
+                let roll = Maths.Vector4.BuildQuaternion System.Numerics.Vector3.UnitZ (deltaTime * (state.keyLeftInput - state.keyRightInput))
+                let pitch = Maths.Vector4.BuildQuaternion System.Numerics.Vector3.UnitX (0.75f * deltaTime * (state.keyForwardInput - state.keyBackInput))
+                let deltaP = deltaTime*forward
+                state <-
+                    {state with
+                        lastFrameTime = state.upTime.Elapsed.TotalSeconds
+                        lastSpeed = newSpeed
+                        playerPosition = state.playerPosition + deltaP
+                        playerQuaternion =
+                            pitch.QuaternionMultiply roll
+                            |> state.playerQuaternion.QuaternionMultiply}
         let drawFunc () =
             updateState ()
             match renderer.BeginFrame () with

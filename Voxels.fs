@@ -201,3 +201,42 @@ let generateRecursiveVoxelOctree n =
         | childIndex when childIndex = nullVoxelIndex -> bfs
         | childIndex -> 
     f v None [0u, 1.f]*)
+
+let octreeScale (v: System.Numerics.Vector3) (octree: VoxelCompact[]) =
+    let maxDepth = 14
+    let rec f (scale: float32) iter (p: System.Numerics.Vector3) = function
+    | index when index = nullVoxelIndex || iter = maxDepth -> scale
+    | index ->
+        let i = int index
+        let voxel = octree.[i]
+        if voxel.flags &&& 1u > 0u then
+            scale
+        else
+            let func p =
+                f (scale + scale) (iter + 1) (p+p)
+            if p.X > 0.f then
+                if p.Y > 0.f then
+                    if p.Z > 0.f then
+                        func (p - btrCell) voxel.nodeBTR
+                    else
+                        func (p - ftrCell) voxel.nodeFTR
+                else
+                    if p.Z > 0.f then
+                        func (p - bbrCell) voxel.nodeBBR
+                    else
+                        func (p - fbrCell) voxel.nodeFBR
+            else
+                if p.Y > 0.f then
+                    if p.Z > 0.f then
+                        func (p - btlCell) voxel.nodeBTL
+                    else
+                        func (p - ftlCell) voxel.nodeFTL
+                else
+                    if p.Z > 0.f then
+                        func (p - bblCell) voxel.nodeBBL
+                    else
+                        func (p - fblCell) voxel.nodeFBL
+    if abs v.X > 1.f || abs v.Y > 1.f || abs v.Z > 1.f then
+        1.f
+    else
+        1.f / (f 1.f 1 v 0u)

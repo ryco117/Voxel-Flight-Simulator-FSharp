@@ -31,7 +31,7 @@ layout(set = 0, binding = 0) readonly buffer VoxelOctree {
 
 const float pi = 3.14159265358;
 const float e = 2.718281828;
-const int maxIterations = 60;
+const int maxIterations = 50;
 const float epsilon = 0.0001;
 const float unitEpsilon = 1.0 + epsilon;
 const vec3 dirX = vec3(1.0, 0.0, 0.0);
@@ -157,7 +157,7 @@ uint voxelIndex(inout vec3 p, inout float scale, int scaleDepth) {
 	do {
 		if(index == emptyVoxel) return index;
 
-		scale *= 2.0;
+		scale += scale;
 		if(p.x > 0.0) {
 			if(p.y > 0.0) {
 				if(p.z > 0.0) {
@@ -242,7 +242,7 @@ vec4 escapeColour(vec3 d) {
 	return mix(groundSkyColour, vec4(lightColor, 1.0), clamp(64.0*dot(d, push.lightDir) - 63.0, 0.0, 1.0));
 }
 
-const float minTravel = 0.00390625;
+const float minTravel = 0.002;
 vec4 castVoxelRay(vec3 p, vec3 d) {
 	gradient = vec3(0.0);
 	p += minTravel * d;
@@ -253,7 +253,7 @@ vec4 castVoxelRay(vec3 p, vec3 d) {
 	do {
 		vec3 s = p;
 		float scale = 1.0;
-		int maxDepth = clamp(10 - int(1.4427*log(travelDist)), 3, 15);
+		int maxDepth = clamp(10 - int(1.4427*log(travelDist)), 3, 14);
 		uint index = voxelIndex(s, scale, maxDepth);
 		//uint index = voxelIndex(s, scale, 9);
 
@@ -274,9 +274,10 @@ vec4 castVoxelRay(vec3 p, vec3 d) {
 }
 
 const float fov = (pi/2.0) / 2.0;
+const float fovX = sin(fov);
+const float fovY = sin(0.6*fov);
 void main(void) {
-	float dy = cos(0.6*coord.y*fov);
-	vec3 direction = vec3(sin(coord.x*fov)*dy, -sin(0.6*coord.y*fov), cos(coord.x*fov)*dy);
+	vec3 direction = normalize(vec3(coord.x*fovX, -coord.y*fovY, 1.0));
 	direction = rotateByQuaternion(direction, push.cameraQuaternion);
 	vec3 pos = push.cameraPosition;
 

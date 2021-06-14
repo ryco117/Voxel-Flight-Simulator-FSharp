@@ -8,6 +8,7 @@ type LightState = {
     keyLeftInput: float32
     keyRightInput: float32
     lastFrameTime: float
+    lastSpeed: float32
     playerPosition: System.Numerics.Vector3
     playerQuaternion: Maths.Vector4
     upTime: System.Diagnostics.Stopwatch}
