@@ -54,8 +54,9 @@ type LightApp () =
                     |> float32
                 let newSpeed =
                     let defaultSpeed = 0.2f
-                    let frac = exp (-2.5f * deltaTime)
-                    frac * state.lastSpeed + (1.f - frac) * defaultSpeed * System.MathF.Pow (Voxels.octreeScale state.playerPosition renderSystem.VoxelData, 0.425f)
+                    let tempNew = defaultSpeed * System.MathF.Pow (Voxels.octreeScale state.playerPosition renderSystem.VoxelData, 0.4f)
+                    let frac = exp ((if tempNew > state.lastSpeed then -1.75f else -3.f) * deltaTime)
+                    frac * state.lastSpeed + (1.f - frac) * tempNew
                 let forward =
                     newSpeed * System.Numerics.Vector3.UnitZ
                     |> state.playerQuaternion.RotateVectorAsQuaternion
@@ -95,10 +96,42 @@ type LightApp () =
                         keyBackInput = state.keyBackInput
                         gameObjects = state.gameObjects
                         upTime = state.upTime}
-            | Keys.W -> state <- {state with demoControls = false; keyForwardInput = 1.f}
-            | Keys.S -> state <- {state with demoControls = false; keyBackInput = 1.f}
-            | Keys.D -> state <- {state with demoControls = false; keyRightInput = 1.f}
-            | Keys.A -> state <- {state with demoControls = false; keyLeftInput = 1.f}
+            | Keys.W when state.demoControls ->
+                state <-
+                    let time = float32 state.upTime.Elapsed.TotalSeconds
+                    {state with
+                        demoControls = false
+                        playerPosition = demoCameraPosition time
+                        playerQuaternion = demoCameraQuaternion time
+                        keyForwardInput = 1.f}
+            | Keys.S when state.demoControls ->
+                state <-
+                    let time = float32 state.upTime.Elapsed.TotalSeconds
+                    {state with
+                        demoControls = false
+                        playerPosition = demoCameraPosition time
+                        playerQuaternion = demoCameraQuaternion time
+                        keyBackInput = 1.f}
+            | Keys.D when state.demoControls ->
+                state <-
+                    let time = float32 state.upTime.Elapsed.TotalSeconds
+                    {state with
+                        demoControls = false
+                        playerPosition = demoCameraPosition time
+                        playerQuaternion = demoCameraQuaternion time
+                        keyRightInput = 1.f}
+            | Keys.A when state.demoControls ->
+                state <-
+                    let time = float32 state.upTime.Elapsed.TotalSeconds
+                    {state with
+                        demoControls = false
+                        playerPosition = demoCameraPosition time
+                        playerQuaternion = demoCameraQuaternion time
+                        keyLeftInput = 1.f}
+            | Keys.W -> state <- {state with keyForwardInput = 1.f}
+            | Keys.S -> state <- {state with keyBackInput = 1.f}
+            | Keys.D -> state <- {state with keyRightInput = 1.f}
+            | Keys.A -> state <- {state with keyLeftInput = 1.f}
             | Keys.F11 -> window.ToggleFullscreen ()
             | _ -> ()
         window.HandleKeyDown <- Some handleKeyDown

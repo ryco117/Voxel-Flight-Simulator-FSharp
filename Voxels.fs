@@ -203,7 +203,7 @@ let generateRecursiveVoxelOctree n =
     f v None [0u, 1.f]*)
 
 let octreeScale (v: System.Numerics.Vector3) (octree: VoxelCompact[]) =
-    let maxDepth = 14
+    let maxDepth = 13
     let rec f (scale: float32) iter (p: System.Numerics.Vector3) = function
     | index when index = nullVoxelIndex || iter = maxDepth -> scale
     | index ->

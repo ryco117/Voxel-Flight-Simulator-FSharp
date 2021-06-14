@@ -31,7 +31,7 @@ layout(set = 0, binding = 0) readonly buffer VoxelOctree {
 
 const float pi = 3.14159265358;
 const float e = 2.718281828;
-const int maxIterations = 50;
+const int maxIterations = 42;
 const float epsilon = 0.0001;
 const float unitEpsilon = 1.0 + epsilon;
 const vec3 dirX = vec3(1.0, 0.0, 0.0);
@@ -253,7 +253,7 @@ vec4 castVoxelRay(vec3 p, vec3 d) {
 	do {
 		vec3 s = p;
 		float scale = 1.0;
-		int maxDepth = clamp(10 - int(1.4427*log(travelDist)), 3, 14);
+		int maxDepth = clamp(10 - int(1.4427*log(travelDist)), 3, 13);
 		uint index = voxelIndex(s, scale, maxDepth);
 		//uint index = voxelIndex(s, scale, 9);
 
@@ -273,9 +273,9 @@ vec4 castVoxelRay(vec3 p, vec3 d) {
 	return scaleColor(i, escapeColour(d));
 }
 
-const float fov = (pi/2.0) / 2.0;
+const float fov = (pi/1.8) / 2.0;
 const float fovX = sin(fov);
-const float fovY = sin(0.6*fov);
+const float fovY = sin(0.6*fov);	// TODO: Add screen ratio to push-constant or uniform
 void main(void) {
 	vec3 direction = normalize(vec3(coord.x*fovX, -coord.y*fovY, 1.0));
 	direction = rotateByQuaternion(direction, push.cameraQuaternion);

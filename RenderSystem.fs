@@ -19,16 +19,10 @@ type PushConstantData =
         [<System.Runtime.InteropServices.FieldOffset 32>]
         val lightDir: System.Numerics.Vector3
         new (time') = {
-            cameraPosition =
-                let delta = time' / 16.f;
-                System.Numerics.Vector3 (-2.25f * sin delta, 0.125f, -2.25f * cos delta)
+            cameraPosition = demoCameraPosition time'
             time = time'
-            cameraQuaternion =
-                let delta = time' / 32.f
-                Maths.Vector4 (0.f, sin delta, 0.f, cos delta)
-            lightDir =
-                let delta = time' / -15.f
-                System.Numerics.Vector3 (0.8f * sin delta, 0.6f, 0.8f * cos delta)}
+            cameraQuaternion = demoCameraQuaternion time'
+            lightDir = lightDir time'}
         new (cameraPosition', cameraQuaternion', time') = {
             cameraPosition = cameraPosition'
             time = time'
