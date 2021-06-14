@@ -10,15 +10,16 @@ let primaryScreenDimensions () =
     screen.Width, screen.Height
 
 type LightVulkanWindow (width: int, height: int, title: string) as self =
-    inherit Form (Text = title, Size = System.Drawing.Size(width, height), FormBorderStyle = FormBorderStyle.Sizable)
+    inherit Form (Text = title, Size = System.Drawing.Size (width, height), FormBorderStyle = FormBorderStyle.Sizable)
 
     do self.SetStyle (ControlStyles.UserPaint + ControlStyles.Opaque, true)
     do self.UpdateStyles ()
     
     let mutable (drawFunction: (unit -> unit) option) = None
-    let mutable (handleInputFunction: (KeyEventArgs -> unit) option) = None
+    let mutable (handleKeyDown: (KeyEventArgs -> unit) option) = None
+    let mutable (handleKeyUp: (KeyEventArgs -> unit) option) = None
     let mutable resized = false
-    do self.Resize.Add(fun _args -> resized <- true)
+    do self.Resize.Add (fun _args -> resized <- true)
 
     let mutable fullscreen = false
 
@@ -40,9 +41,13 @@ type LightVulkanWindow (width: int, height: int, title: string) as self =
         with get () = drawFunction
         and set func = drawFunction <- func
 
-    member _.HandleInputFunction
-        with get () = handleInputFunction
-        and set func = handleInputFunction <- func
+    member _.HandleKeyDown
+        with get () = handleKeyDown
+        and set func = handleKeyDown <- func
+
+    member _.HandleKeyUp
+        with get () = handleKeyUp
+        and set func = handleKeyUp <- func
 
     member _.ToggleFullscreen () =
         fullscreen <- not fullscreen
@@ -57,7 +62,12 @@ type LightVulkanWindow (width: int, height: int, title: string) as self =
             self.Extent <- Extent2D (Width = uint32 width, Height = uint32 height)
             
     override _.OnKeyDown args =
-        match handleInputFunction with
+        match handleKeyDown with
+        | Some func -> func args
+        | None -> ()
+
+    override _.OnKeyUp args =
+        match handleKeyUp with
         | Some func -> func args
         | None -> ()
 

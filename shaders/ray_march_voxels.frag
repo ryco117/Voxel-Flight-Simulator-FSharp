@@ -1,4 +1,5 @@
 #version 450
+precision highp float;
 layout (location = 0) in vec2 coord;
 
 layout (location = 0) out vec4 fragColor;
@@ -90,7 +91,7 @@ bool insideCube(vec3 t) {
 	return t.x <= 1.0 && t.y <= 1.0 && t.z <= 1.0;
 }
 
-bool projectToRootVoxel(inout vec3 p, vec3 d, out float travelDist) {
+bool projectToRootVoxel(inout vec3 p, vec3 d, inout float travelDist) {
 	if(insideCube(p)) return true;
 
 	vec3 s;
@@ -101,7 +102,7 @@ bool projectToRootVoxel(inout vec3 p, vec3 d, out float travelDist) {
 			s = p + (t + epsilon)*d;
 			if(abs(s.y) <= 1.0 && abs(s.z) <= 1.0) {
 				p = s;
-				travelDist = t + epsilon;
+				travelDist += t + epsilon;
 				return true;
 			}
 		}
@@ -112,7 +113,7 @@ bool projectToRootVoxel(inout vec3 p, vec3 d, out float travelDist) {
 			s = p + (t + epsilon)*d;
 			if(abs(s.x) <= 1.0 && abs(s.z) <= 1.0) {
 				p = s;
-				travelDist = t + epsilon;
+				travelDist += t + epsilon;
 				return true;
 			}
 		}
@@ -123,7 +124,7 @@ bool projectToRootVoxel(inout vec3 p, vec3 d, out float travelDist) {
 			s = p + (t + epsilon)*d;
 			if(abs(s.y) <= 1.0 && abs(s.x) <= 1.0) {
 				p = s;
-				travelDist = t + epsilon;
+				travelDist += t + epsilon;
 				return true;
 			}
 		}
@@ -241,16 +242,18 @@ vec4 escapeColour(vec3 d) {
 	return mix(groundSkyColour, vec4(lightColor, 1.0), clamp(64.0*dot(d, push.lightDir) - 63.0, 0.0, 1.0));
 }
 
+const float minTravel = 0.00390625;
 vec4 castVoxelRay(vec3 p, vec3 d) {
 	gradient = vec3(0.0);
-	float travelDist = 0.0;
+	p += minTravel * d;
+	float travelDist = minTravel;
 	if(!projectToRootVoxel(p, d, travelDist)) return escapeColour(d);
 
 	int i = 0;
 	do {
 		vec3 s = p;
 		float scale = 1.0;
-		int maxDepth = clamp(10 - int(1.4427*log(travelDist)), 3, 12);
+		int maxDepth = clamp(10 - int(1.4427*log(travelDist)), 3, 15);
 		uint index = voxelIndex(s, scale, maxDepth);
 		//uint index = voxelIndex(s, scale, 9);
 
@@ -260,8 +263,6 @@ vec4 castVoxelRay(vec3 p, vec3 d) {
 			p += t * d;
 			travelDist += t;
 		} else {
-			//if(maxDepth != 5) break;
-
 			gradient = cubeNorm(s);
 
 			p += projectToOutsideDistance(s) / scale;
@@ -272,7 +273,7 @@ vec4 castVoxelRay(vec3 p, vec3 d) {
 	return scaleColor(i, escapeColour(d));
 }
 
-const float fov = pi/1.9 / 2.0;
+const float fov = (pi/2.0) / 2.0;
 void main(void) {
 	float dy = cos(0.6*coord.y*fov);
 	vec3 direction = vec3(sin(coord.x*fov)*dy, -sin(0.6*coord.y*fov), cos(coord.x*fov)*dy);

@@ -23,13 +23,22 @@ type Voxel = {
     nodeBBR: GraphRef<Voxel> // Back-Bottom-Right
     flags: uint32    (*TODO: Support more flags than leaf bit*)}
 
+let ftlCell = System.Numerics.Vector3 (-0.5f, 0.5f, -0.5f)
+let ftrCell = System.Numerics.Vector3 (0.5f, 0.5f, -0.5f)
+let fblCell = System.Numerics.Vector3 (-0.5f, -0.5f, -0.5f)
+let fbrCell = System.Numerics.Vector3 (0.5f, -0.5f, -0.5f)
+let btlCell = System.Numerics.Vector3 (-0.5f, 0.5f, 0.5f)
+let btrCell = System.Numerics.Vector3 (0.5f, 0.5f, 0.5f)
+let bblCell = System.Numerics.Vector3 (-0.5f, -0.5f, 0.5f)
+let bbrCell = System.Numerics.Vector3 (0.5f, -0.5f, 0.5f)
+
 let emptyLeafVoxel = {
     averageColour = Vector4.Zero
     nodeFTL = Recurse Self; nodeFTR = Recurse Self; nodeFBL = Recurse Self; nodeFBR = Recurse Self
     nodeBTL = Recurse Self; nodeBTR = Recurse Self; nodeBBL = Recurse Self; nodeBBR = Recurse Self
     flags = 1u}
 
-[<System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Explicit)>]
+[<System.Runtime.InteropServices.StructLayout (System.Runtime.InteropServices.LayoutKind.Explicit)>]
 type VoxelCompact =
     struct
         [<System.Runtime.InteropServices.FieldOffset 0>]
@@ -112,11 +121,13 @@ let compactOctreeFromRoot rootVoxel =
     |> List.rev
     |> List.toArray
 
-let generateSparseVoxelOctree n =
-    let randomColour () = Vector4 (Helpers.randomFloat (), Helpers.randomFloat (), Helpers.randomFloat (), 1.f)
-    let randomLeaf () =
-        let colour = randomColour ()
-        {emptyLeafVoxel with averageColour = colour}
+let randomColour () = Vector4 (Helpers.randomFloat (), Helpers.randomFloat (), Helpers.randomFloat (), 1.f)
+
+let randomLeaf () =
+    let colour = randomColour ()
+    {emptyLeafVoxel with averageColour = colour}
+
+let generateRecursiveVoxelOctree n =
     let rec randomRecurse maxDepth =
         if maxDepth > 0 && Helpers.random.NextDouble () > 0.85 then
             Parent (randomRecurse (maxDepth - 1))
@@ -178,8 +189,15 @@ let generateSparseVoxelOctree n =
     queue.Dequeue ()
     |> compactOctreeFromRoot
 
-let octreeDistance (v: System.Numerics.Vector3) (octree: VoxelCompact[]) =
+(*let octreeDistance (v: System.Numerics.Vector3) (octree: VoxelCompact[]) =
     let rec f p minDist = function
-    | [] -> minDist
-    | index::tail -> minDist
-    f v (max (abs v.X) (max (abs v.Y) (abs v.Z))) []
+    | [] ->
+        match minDist with
+        | Some dist -> dist
+        | None -> raise (System.Exception "No distance found")
+    | (index, scale)::tail ->
+        let voxel = octree.[index]
+        let expandSearch bfs = function
+        | childIndex when childIndex = nullVoxelIndex -> bfs
+        | childIndex -> 
+    f v None [0u, 1.f]*)
