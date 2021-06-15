@@ -15,7 +15,10 @@ type LightVulkanWindow (width: int, height: int, title: string) as self =
     do self.SetStyle (ControlStyles.UserPaint + ControlStyles.Opaque, true)
     do self.UpdateStyles ()
     
+    let xInput = XInput.XInput ()
     let mutable (drawFunction: (unit -> unit) option) = None
+    let mutable (tockFunction: (unit -> unit) option) = None
+    let mutable (handleController: (SharpDX.XInput.Gamepad option -> unit) option) = None
     let mutable (handleKeyDown: (KeyEventArgs -> unit) option) = None
     let mutable (handleKeyUp: (KeyEventArgs -> unit) option) = None
     let mutable resized = false
@@ -33,6 +36,8 @@ type LightVulkanWindow (width: int, height: int, title: string) as self =
             self.ClientSize <- System.Drawing.Size (int extent.Width, int extent.Height)
             self.Resized <- true
 
+    member self.ScreenRatio = (float32 self.Height) / (float32 self.Width)
+
     member _.Resized 
         with get () = resized
         and set resized' = resized <- resized'
@@ -40,6 +45,14 @@ type LightVulkanWindow (width: int, height: int, title: string) as self =
     member _.DrawFunction
         with get () = drawFunction
         and set func = drawFunction <- func
+
+    member _.TockFunction
+        with get () = tockFunction
+        and set func = tockFunction <- func
+
+    member _.HandleController
+        with get () = handleController
+        and set func = handleController <- func
 
     member _.HandleKeyDown
         with get () = handleKeyDown
@@ -74,6 +87,12 @@ type LightVulkanWindow (width: int, height: int, title: string) as self =
     override _.OnPaintBackground _ = ()
 
     override _.OnPaint _args =
+        match handleController with
+        | None -> ()
+        | Some controllerFunc -> controllerFunc xInput.UpdatedState
+        match tockFunction with
+        | None -> ()
+        | Some tockFunc -> tockFunc ()
         if self.Visible then
             match drawFunction with
             | Some drawFunc -> drawFunc ()

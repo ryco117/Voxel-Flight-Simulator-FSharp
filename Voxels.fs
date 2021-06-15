@@ -202,15 +202,16 @@ let generateRecursiveVoxelOctree n =
         | childIndex -> 
     f v None [0u, 1.f]*)
 
-let octreeScale (v: System.Numerics.Vector3) (octree: VoxelCompact[]) =
-    let maxDepth = 13
+let octreeScaleAndCollisionOfPoint (v: System.Numerics.Vector3) (octree: VoxelCompact[]) =
+    let maxDepth = 12   // TODO: Unify maxDepth between shader and cpu programatically
     let rec f (scale: float32) iter (p: System.Numerics.Vector3) = function
-    | index when index = nullVoxelIndex || iter = maxDepth -> scale
+    | _ when iter = maxDepth -> scale, true
+    | index when index = nullVoxelIndex -> scale, false
     | index ->
         let i = int index
         let voxel = octree.[i]
         if voxel.flags &&& 1u > 0u then
-            scale
+            scale, true
         else
             let func p =
                 f (scale + scale) (iter + 1) (p+p)
@@ -237,6 +238,7 @@ let octreeScale (v: System.Numerics.Vector3) (octree: VoxelCompact[]) =
                     else
                         func (p - fblCell) voxel.nodeFBL
     if abs v.X > 1.f || abs v.Y > 1.f || abs v.Z > 1.f then
-        1.f
+        1.f, false
     else
-        1.f / (f 1.f 1 v 0u)
+        let scaleInv, b = f 1.f 0 v 0u
+        1.f / scaleInv, b

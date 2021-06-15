@@ -9,6 +9,7 @@ layout (push_constant) uniform Push {
 	float time;
 	vec4 cameraQuaternion;
 	vec3 lightDir;
+	float screenHeightOverWidth;
 } push;
 
 struct Voxel {
@@ -42,8 +43,8 @@ const vec3 negDirY = vec3(0.0, -1.0, 0.0);
 const vec3 negDirZ = vec3(0.0, 0.0, -1.0);
 
 const vec4 fogColour = vec4(0.42, 0.525, 0.45, 1.0);
-const vec4 skyColour = vec4(0.1, 0.2, 0.65, 1.0);
-const vec4 groundColour = vec4(0.5, 0.45, 0.475, 1.0);
+const vec4 skyColour = vec4(0.08, 0.2, 0.75, 1.0);
+const vec4 groundColour = vec4(0.2, 0.08, 0.08, 1.0);
 
 // Phong lighting
 const float ambientStrength = 0.35;
@@ -61,7 +62,8 @@ const vec3 bbrCell = vec3(0.5, -0.5, 0.5);
 
 vec3 rotateByQuaternion(vec3 v, vec4 q)
 {
-	return v + 2.0*cross(q.xyz, cross(q.xyz, v) + q.w * v);
+	vec3 temp = cross(q.xyz, cross(q.xyz, v) + q.w * v);
+	return v + temp+temp;
 }
 
 vec3 cubeNorm(vec3 t) {
@@ -91,13 +93,13 @@ bool insideCube(vec3 t) {
 	return t.x <= 1.0 && t.y <= 1.0 && t.z <= 1.0;
 }
 
-bool projectToRootVoxel(inout vec3 p, vec3 d, inout float travelDist) {
+bool projectToRootVoxel(inout vec3 p, vec3 d, vec3 invD, inout float travelDist) {
 	if(insideCube(p)) return true;
 
 	vec3 s;
 	float t;
 	if(abs(p.x) >= 1.0) {
-		t = (sign(p.x) - p.x)/d.x;
+		t = (sign(p.x) - p.x)*invD.x;
 		if(t > 0.0) {
 			s = p + (t + epsilon)*d;
 			if(abs(s.y) <= 1.0 && abs(s.z) <= 1.0) {
@@ -108,7 +110,7 @@ bool projectToRootVoxel(inout vec3 p, vec3 d, inout float travelDist) {
 		}
 	}
 	if(abs(p.y) >= 1.0) {
-		t = (sign(p.y) - p.y)/d.y;
+		t = (sign(p.y) - p.y)*invD.y;
 		if(t > 0.0) {
 			s = p + (t + epsilon)*d;
 			if(abs(s.x) <= 1.0 && abs(s.z) <= 1.0) {
@@ -119,7 +121,7 @@ bool projectToRootVoxel(inout vec3 p, vec3 d, inout float travelDist) {
 		}
 	}
 	if(abs(p.z) >= 1.0) {
-		t = (sign(p.z) - p.z)/d.z;
+		t = (sign(p.z) - p.z)*invD.z;
 		if(t > 0.0) {
 			s = p + (t + epsilon)*d;
 			if(abs(s.y) <= 1.0 && abs(s.x) <= 1.0) {
@@ -132,21 +134,21 @@ bool projectToRootVoxel(inout vec3 p, vec3 d, inout float travelDist) {
 	return false;
 }
 
-float escapeCubeDistance(vec3 p, vec3 d) {
+float escapeCubeDistance(vec3 p, vec3 d, vec3 invD) {
 	vec3 s;
-	float t = (unitEpsilon*sign(d.x) - p.x)/d.x;
+	float t = (unitEpsilon*sign(d.x) - p.x)*invD.x;
 	s = p + t*d;
 	if(abs(s.y) <= unitEpsilon && abs(s.z) <= unitEpsilon) {
 		return t;
 	}
 
-	t = (unitEpsilon*sign(d.y) - p.y)/d.y;
+	t = (unitEpsilon*sign(d.y) - p.y)*invD.y;
 	s = p + t*d;
 	if(abs(s.x) <= unitEpsilon && abs(s.z) <= unitEpsilon) {
 		return t;
 	}
 
-	return (unitEpsilon*sign(d.z) - p.z)/d.z;
+	return (unitEpsilon*sign(d.z) - p.z)*invD.z;
 }
 
 uint voxelIndex(inout vec3 p, inout float scale, int scaleDepth) {
@@ -157,7 +159,7 @@ uint voxelIndex(inout vec3 p, inout float scale, int scaleDepth) {
 	do {
 		if(index == emptyVoxel) return index;
 
-		scale += scale;
+		scale *= 0.5;
 		if(p.x > 0.0) {
 			if(p.y > 0.0) {
 				if(p.z > 0.0) {
@@ -195,14 +197,14 @@ uint voxelIndex(inout vec3 p, inout float scale, int scaleDepth) {
 				}
 			}
 		}
-		p *= 2.0;
+		p += p;
 	} while(++i < scaleDepth && voxelOctree.voxels[index].flags == 0);
 	return index;
 }
 
-float castShadowRay(vec3 p, vec3 d, int maxDepth) {
+float castShadowRay(vec3 p, vec3 d, vec3 invD, int maxDepth) {
 	float travelDist = 0.0;
-	if(!projectToRootVoxel(p, d, travelDist)) return 1.0;
+	if(!projectToRootVoxel(p, d, invD, travelDist)) return 1.0;
 
 	int i = 0;
 	do {
@@ -212,14 +214,14 @@ float castShadowRay(vec3 p, vec3 d, int maxDepth) {
 
 		// Is empty or filled?
 		if(index == emptyVoxel) {
-			float t = escapeCubeDistance(s, d) / scale;
+			float t = escapeCubeDistance(s, d, invD) * scale;
 			p += t * d;
 			travelDist += t;
 		} else {
 			return 0.0;
 		}
 		if(!insideCube(p)) return 1.0;
-	} while(++i < 40);
+	} while(++i < maxIterations);
 	return 0.0;
 }
 
@@ -227,7 +229,7 @@ const float maxBrightness = 1.3;
 const float maxBrightnessR2 = maxBrightness*maxBrightness;
 vec4 scaleColor(float si, vec4 col) {
 	float temp = 1.0 - si/float(maxIterations);
-	return mix(fogColour, col, temp*temp*temp);
+	return mix(fogColour, col, temp*temp);
 }
 
 vec3 gradient;
@@ -242,40 +244,40 @@ vec4 escapeColour(vec3 d) {
 	return mix(groundSkyColour, vec4(lightColor, 1.0), clamp(64.0*dot(d, push.lightDir) - 63.0, 0.0, 1.0));
 }
 
-const float minTravel = 0.002;
+const float minTravel = 0.001;
 vec4 castVoxelRay(vec3 p, vec3 d) {
 	gradient = vec3(0.0);
 	p += minTravel * d;
 	float travelDist = minTravel;
-	if(!projectToRootVoxel(p, d, travelDist)) return escapeColour(d);
+	vec3 invD = 1.0 / d;
+	if(!projectToRootVoxel(p, d, invD, travelDist)) return escapeColour(d);
 
 	int i = 0;
 	do {
 		vec3 s = p;
 		float scale = 1.0;
-		int maxDepth = clamp(10 - int(1.4427*log(travelDist)), 3, 13);
+		int maxDepth = clamp(10 - int(1.4427*log(travelDist)), 3, 12);
 		uint index = voxelIndex(s, scale, maxDepth);
-		//uint index = voxelIndex(s, scale, 9);
 
 		// Is empty or filled?
 		if(index == emptyVoxel) {
-			float t = escapeCubeDistance(s, d) / scale;
+			float t = escapeCubeDistance(s, d, invD) * scale;
 			p += t * d;
 			travelDist += t;
 		} else {
 			gradient = cubeNorm(s);
 
-			p += projectToOutsideDistance(s) / scale;
-			return scaleColor(i, vec4(phongLighting(voxelOctree.voxels[index].averageColour.xyz, castShadowRay(p, push.lightDir, maxDepth)), 1.0));
+			p += projectToOutsideDistance(s) * scale;
+			return scaleColor(i, vec4(phongLighting(voxelOctree.voxels[index].averageColour.xyz, castShadowRay(p, push.lightDir, 1.0 / push.lightDir, maxDepth)), 1.0));
 			//return vec4(phongLighting(voxelOctree.voxels[index].averageColour.xyz, castShadowRay(p, push.lightDir, maxDepth)), 1.0);
 		}
-	} while(insideCube(p) && ++i < maxIterations);
+	} while(++i < maxIterations && insideCube(p));
 	return scaleColor(i, escapeColour(d));
 }
 
-const float fov = (pi/1.8) / 2.0;
+const float fov = (pi/1.775) / 2.0;
 const float fovX = sin(fov);
-const float fovY = sin(0.6*fov);	// TODO: Add screen ratio to push-constant or uniform
+float fovY = sin(push.screenHeightOverWidth * fov);
 void main(void) {
 	vec3 direction = normalize(vec3(coord.x*fovX, -coord.y*fovY, 1.0));
 	direction = rotateByQuaternion(direction, push.cameraQuaternion);

@@ -18,24 +18,28 @@ type PushConstantData =
         val cameraQuaternion: Maths.Vector4
         [<System.Runtime.InteropServices.FieldOffset 32>]
         val lightDir: System.Numerics.Vector3
-        new (time') = {
+        [<System.Runtime.InteropServices.FieldOffset 44>]
+        val screenHeightOverWidth: float32
+        new (time', screenRatio) = {
             cameraPosition = demoCameraPosition time'
             time = time'
             cameraQuaternion = demoCameraQuaternion time'
-            lightDir = lightDir time'}
-        new (cameraPosition', cameraQuaternion', time') = {
+            lightDir = lightDir time'
+            screenHeightOverWidth = screenRatio}
+        new (cameraPosition', cameraQuaternion', time', screenRatio) = {
             cameraPosition = cameraPosition'
             time = time'
             cameraQuaternion = cameraQuaternion'
-            lightDir =
-                let delta = time' / -15.f
-                System.Numerics.Vector3 (0.8f * sin delta, 0.6f, 0.8f * cos delta)}
+            lightDir = lightDir time'
+            screenHeightOverWidth = screenRatio}
     end
 let pushConstantSize = sizeof<PushConstantData>
 
+let recursiveVoxelLeafCount = 4096
+
 type LightRenderSystem (device: LightDevice, initialRenderPass: RenderPass) =
      // Create Shader Storage Buffer to contain a sparse-voxel-octree
-    let mutable voxelData = generateRecursiveVoxelOctree 8192
+    let mutable voxelData = generateRecursiveVoxelOctree recursiveVoxelLeafCount
     let createVoxelBufferMemory (voxelData: VoxelCompact[]) =
         let voxelBufferDeviceSize = DeviceSize.op_Implicit (sizeof<VoxelCompact> * voxelData.Length)
         let buffer, memory = device.CreateBuffer voxelBufferDeviceSize BufferUsageFlags.StorageBuffer (MemoryPropertyFlags.HostVisible + MemoryPropertyFlags.HostCoherent)
@@ -114,7 +118,7 @@ type LightRenderSystem (device: LightDevice, initialRenderPass: RenderPass) =
         device.Device.DestroyBuffer voxelBuffer
         device.Device.FreeMemory voxelBufferMemory
 
-        voxelData <- generateRecursiveVoxelOctree 8192
+        voxelData <- generateRecursiveVoxelOctree recursiveVoxelLeafCount
         match createVoxelBufferMemory voxelData with
         | buffer, memory, deviceSize ->
             voxelBuffer <- buffer
@@ -122,7 +126,7 @@ type LightRenderSystem (device: LightDevice, initialRenderPass: RenderPass) =
             voxelBufferDeviceSize <- deviceSize
         updateDescriptorSets ()
 
-    member _.RenderGameObjects buffer (state: LightState) =
+    member _.RenderGameObjects buffer (state: LightState) screenHeightOverWidth =
         pipeline.Bind buffer
         buffer.CmdBindDescriptorSet (PipelineBindPoint.Graphics, pipelineLayout, 0u, descriptorSet, System.Nullable ())
         for obj in state.gameObjects do
@@ -132,9 +136,9 @@ type LightRenderSystem (device: LightDevice, initialRenderPass: RenderPass) =
                 let mutable structure =
                     let time = float32 state.upTime.Elapsed.TotalSeconds
                     if state.demoControls then
-                        PushConstantData (time)
+                        PushConstantData (time, screenHeightOverWidth)
                     else
-                        PushConstantData (state.playerPosition, state.playerQuaternion, time)
+                        PushConstantData (state.playerPosition, state.playerQuaternion, time, screenHeightOverWidth)
                 buffer.CmdPushConstants (pipelineLayout, ShaderStageFlags.Fragment, 0u, uint32 pushConstantSize, NativeInterop.NativePtr.toNativeInt &&structure)
                 model.Bind buffer
                 model.Draw buffer

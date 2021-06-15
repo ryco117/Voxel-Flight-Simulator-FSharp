@@ -7,6 +7,8 @@ type LightState = {
     keyForwardInput: float32
     keyLeftInput: float32
     keyRightInput: float32
+    keyStrafeLeftInput: float32
+    keyStrafeRightInput: float32
     lastFrameTime: float
     lastSpeed: float32
     playerPosition: System.Numerics.Vector3
@@ -23,4 +25,4 @@ let demoCameraQuaternion time =
 
 let lightDir time =
     let delta = time / -15.f
-    System.Numerics.Vector3 (0.8f * sin delta, 0.6f, 0.8f * cos delta)
+    System.Numerics.Vector3 (0.9165f * sin delta, 0.4f, 0.9165f * cos delta)

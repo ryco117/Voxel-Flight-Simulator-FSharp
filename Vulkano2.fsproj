@@ -19,6 +19,7 @@
     <None Include="shaders\object.vert" />
     <Compile Include="Helpers.fs" />
     <Compile Include="Maths.fs" />
+    <Compile Include="XInput.fs" />
     <Compile Include="Voxels.fs" />
     <Compile Include="VulkanWindow.fs" />
     <Compile Include="Device.fs" />
@@ -31,6 +32,10 @@
     <Compile Include="RenderSystem.fs" />
     <Compile Include="LightApp.fs" />
     <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SharpDX.XInput" Version="4.2.0" />
   </ItemGroup>
 
   <ItemGroup>
