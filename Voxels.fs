@@ -21,7 +21,7 @@ type Voxel = {
     nodeBTR: GraphRef<Voxel> // Back-Top-Right
     nodeBBL: GraphRef<Voxel> // Back-Bottom-Left
     nodeBBR: GraphRef<Voxel> // Back-Bottom-Right
-    flags: uint32    (*TODO: Support more flags than leaf bit*)}
+    flags: uint32}
 
 let ftlCell = System.Numerics.Vector3 (-0.5f, 0.5f, -0.5f)
 let ftrCell = System.Numerics.Vector3 (0.5f, 0.5f, -0.5f)
@@ -175,7 +175,7 @@ let generateRecursiveVoxelOctree n =
             let bbr = popNodeOption ()
             if popped then
                 {
-                    averageColour = if weight = 0.f then randomColour () else colour / weight
+                    averageColour = colour / weight
                     nodeFTL = ftl; nodeFTR = ftr
                     nodeFBL = fbl; nodeFBR = fbr
                     nodeBTL = btl; nodeBTR = btr
@@ -202,16 +202,23 @@ let generateRecursiveVoxelOctree n =
         | childIndex -> 
     f v None [0u, 1.f]*)
 
+type Intersection =
+| EmptySpace
+| Collision
+| Portal
+
 let octreeScaleAndCollisionOfPoint (v: System.Numerics.Vector3) (octree: VoxelCompact[]) =
-    let maxDepth = 12   // TODO: Unify maxDepth between shader and cpu programatically
+    let maxDepth = 11   // TODO: Unify maxDepth between shader and cpu programatically
     let rec f (scale: float32) iter (p: System.Numerics.Vector3) = function
-    | _ when iter = maxDepth -> scale, true
-    | index when index = nullVoxelIndex -> scale, false
+    | _ when iter = maxDepth -> scale, Collision
+    | index when index = nullVoxelIndex -> scale, EmptySpace
     | index ->
         let i = int index
         let voxel = octree.[i]
         if voxel.flags &&& 1u > 0u then
-            scale, true
+            scale, Collision
+        elif voxel.flags &&& 2u > 0u then
+            scale, if System.Numerics.Vector3.Dot (p, p) < 0.75f then Portal else EmptySpace
         else
             let func p =
                 f (scale + scale) (iter + 1) (p+p)
@@ -238,7 +245,43 @@ let octreeScaleAndCollisionOfPoint (v: System.Numerics.Vector3) (octree: VoxelCo
                     else
                         func (p - fblCell) voxel.nodeFBL
     if abs v.X > 1.f || abs v.Y > 1.f || abs v.Z > 1.f then
-        1.f, false
+        1.f, EmptySpace
     else
-        let scaleInv, b = f 1.f 0 v 0u
-        1.f / scaleInv, b
+        let scaleInv, intersection = f 1.f 0 v 0u
+        1.f / scaleInv, intersection
+
+let addRandomGoals n minDepth (octree: VoxelCompact[]) =
+    let rec replaceVoxel selfIndex depth =
+        let selfI = int selfIndex
+        let voxel = octree.[selfI]
+        let setVoxel () = octree.[selfI] <- VoxelCompact (voxel.averageColour, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, 2u); true
+        if voxel.flags &&& 2u > 0u then
+            false
+        elif voxel.flags &&& 1u > 0u then
+            if depth < minDepth then
+                false
+            else
+                setVoxel ()
+        else
+            if depth < minDepth || Helpers.random.NextDouble () > 0.35 then
+                let randChild () =
+                    match Helpers.random.Next 8 with
+                    | 0 -> voxel.nodeFTL
+                    | 1 -> voxel.nodeFTR
+                    | 2 -> voxel.nodeFBL
+                    | 3 -> voxel.nodeFBR
+                    | 4 -> voxel.nodeBTL
+                    | 5 -> voxel.nodeBTR
+                    | 6 -> voxel.nodeBBL
+                    | 7 -> voxel.nodeBBR
+                    | _ -> raise (System.Exception "Invalid octree child index")
+                let mutable newIndex = randChild ()
+                while newIndex = nullVoxelIndex || newIndex <= selfIndex do
+                    newIndex <- randChild ()
+                replaceVoxel newIndex (depth + 1)
+            else
+                setVoxel ()
+    let mutable count = 0
+    while count < n do
+        if replaceVoxel 0u 0 then
+            count <- count + 1

@@ -19,27 +19,33 @@ type PushConstantData =
         [<System.Runtime.InteropServices.FieldOffset 32>]
         val lightDir: System.Numerics.Vector3
         [<System.Runtime.InteropServices.FieldOffset 44>]
-        val screenHeightOverWidth: float32
-        new (time', screenRatio) = {
+        val aspectRatio: float32
+        new (time', aspectRatio') = {
             cameraPosition = demoCameraPosition time'
             time = time'
             cameraQuaternion = demoCameraQuaternion time'
             lightDir = lightDir time'
-            screenHeightOverWidth = screenRatio}
-        new (cameraPosition', cameraQuaternion', time', screenRatio) = {
+            aspectRatio = aspectRatio'}
+        new (cameraPosition', cameraQuaternion', time', aspectRatio') = {
             cameraPosition = cameraPosition'
             time = time'
             cameraQuaternion = cameraQuaternion'
             lightDir = lightDir time'
-            screenHeightOverWidth = screenRatio}
+            aspectRatio = aspectRatio'}
     end
 let pushConstantSize = sizeof<PushConstantData>
 
-let recursiveVoxelLeafCount = 4096
+let recursiveVoxelLeafCount = 2048
+let uniqueGoalCount = 3
+let minGoalDepth = 6
+let createNewVoxelWorld () =
+    let voxels = generateRecursiveVoxelOctree recursiveVoxelLeafCount
+    addRandomGoals uniqueGoalCount minGoalDepth voxels
+    voxels
 
 type LightRenderSystem (device: LightDevice, initialRenderPass: RenderPass) =
      // Create Shader Storage Buffer to contain a sparse-voxel-octree
-    let mutable voxelData = generateRecursiveVoxelOctree recursiveVoxelLeafCount
+    let mutable voxelData =createNewVoxelWorld ()
     let createVoxelBufferMemory (voxelData: VoxelCompact[]) =
         let voxelBufferDeviceSize = DeviceSize.op_Implicit (sizeof<VoxelCompact> * voxelData.Length)
         let buffer, memory = device.CreateBuffer voxelBufferDeviceSize BufferUsageFlags.StorageBuffer (MemoryPropertyFlags.HostVisible + MemoryPropertyFlags.HostCoherent)
@@ -118,7 +124,7 @@ type LightRenderSystem (device: LightDevice, initialRenderPass: RenderPass) =
         device.Device.DestroyBuffer voxelBuffer
         device.Device.FreeMemory voxelBufferMemory
 
-        voxelData <- generateRecursiveVoxelOctree recursiveVoxelLeafCount
+        voxelData <- createNewVoxelWorld ()
         match createVoxelBufferMemory voxelData with
         | buffer, memory, deviceSize ->
             voxelBuffer <- buffer
@@ -126,7 +132,7 @@ type LightRenderSystem (device: LightDevice, initialRenderPass: RenderPass) =
             voxelBufferDeviceSize <- deviceSize
         updateDescriptorSets ()
 
-    member _.RenderGameObjects buffer (state: LightState) screenHeightOverWidth =
+    member _.RenderGameObjects buffer (state: LightState) aspectRatio =
         pipeline.Bind buffer
         buffer.CmdBindDescriptorSet (PipelineBindPoint.Graphics, pipelineLayout, 0u, descriptorSet, System.Nullable ())
         for obj in state.gameObjects do
@@ -136,9 +142,9 @@ type LightRenderSystem (device: LightDevice, initialRenderPass: RenderPass) =
                 let mutable structure =
                     let time = float32 state.upTime.Elapsed.TotalSeconds
                     if state.demoControls then
-                        PushConstantData (time, screenHeightOverWidth)
+                        PushConstantData (time, aspectRatio)
                     else
-                        PushConstantData (state.playerPosition, state.playerQuaternion, time, screenHeightOverWidth)
+                        PushConstantData (state.playerPosition, state.playerQuaternion, time, aspectRatio)
                 buffer.CmdPushConstants (pipelineLayout, ShaderStageFlags.Fragment, 0u, uint32 pushConstantSize, NativeInterop.NativePtr.toNativeInt &&structure)
                 model.Bind buffer
                 model.Draw buffer

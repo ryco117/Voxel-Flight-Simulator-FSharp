@@ -9,7 +9,7 @@ layout (push_constant) uniform Push {
 	float time;
 	vec4 cameraQuaternion;
 	vec3 lightDir;
-	float screenHeightOverWidth;
+	float aspectRatio;
 } push;
 
 struct Voxel {
@@ -32,7 +32,7 @@ layout(set = 0, binding = 0) readonly buffer VoxelOctree {
 
 const float pi = 3.14159265358;
 const float e = 2.718281828;
-const int maxIterations = 42;
+const int maxIterations = 40;
 const float epsilon = 0.0001;
 const float unitEpsilon = 1.0 + epsilon;
 const vec3 dirX = vec3(1.0, 0.0, 0.0);
@@ -202,6 +202,19 @@ uint voxelIndex(inout vec3 p, inout float scale, int scaleDepth) {
 	return index;
 }
 
+float goalVoxelTraversal(inout vec3 p, vec3 d) {
+	float t = dot(d, -p);
+	if(t >= 0.0) {
+		vec3 s = t * d + p;
+		float r2 = dot(s, s);
+		if(r2 < 0.75) {
+			p = s;
+			return t;
+		}
+	}
+	return -1.0;
+}
+
 float castShadowRay(vec3 p, vec3 d, vec3 invD, int maxDepth) {
 	float travelDist = 0.0;
 	if(!projectToRootVoxel(p, d, invD, travelDist)) return 1.0;
@@ -218,7 +231,21 @@ float castShadowRay(vec3 p, vec3 d, vec3 invD, int maxDepth) {
 			p += t * d;
 			travelDist += t;
 		} else {
-			return 0.0;
+			Voxel voxel = voxelOctree.voxels[index];
+			if((voxel.flags & 2) > 0) {
+				// We are in a goal voxel! Traverse and check for hit
+				float t = goalVoxelTraversal(s, d);
+				if(t >= 0.0) {
+					return 0.0;
+				} else {
+					// Copy pasta empty cell
+					t = escapeCubeDistance(s, d, invD) * scale;
+					p += t * d;
+					travelDist += t;
+				}
+			} else {
+				return 0.0;
+			}
 		}
 		if(!insideCube(p)) return 1.0;
 	} while(++i < maxIterations);
@@ -256,7 +283,7 @@ vec4 castVoxelRay(vec3 p, vec3 d) {
 	do {
 		vec3 s = p;
 		float scale = 1.0;
-		int maxDepth = clamp(10 - int(1.4427*log(travelDist)), 3, 12);
+		int maxDepth = clamp(10 - int(1.4427*log(travelDist)), 3, 11);
 		uint index = voxelIndex(s, scale, maxDepth);
 
 		// Is empty or filled?
@@ -265,19 +292,47 @@ vec4 castVoxelRay(vec3 p, vec3 d) {
 			p += t * d;
 			travelDist += t;
 		} else {
-			gradient = cubeNorm(s);
+			Voxel voxel = voxelOctree.voxels[index];
+			if((voxel.flags & 2) > 0) {
+				// We are in a goal voxel! Traverse and check for hit
+				float t = goalVoxelTraversal(s, d);
+				if(t >= 0.0) {
+					t *= scale;
+					p += t * d;
+					travelDist += t;
+					gradient = normalize(s);
 
-			p += projectToOutsideDistance(s) * scale;
-			return scaleColor(i, vec4(phongLighting(voxelOctree.voxels[index].averageColour.xyz, castShadowRay(p, push.lightDir, 1.0 / push.lightDir, maxDepth)), 1.0));
-			//return vec4(phongLighting(voxelOctree.voxels[index].averageColour.xyz, castShadowRay(p, push.lightDir, maxDepth)), 1.0);
+					float colTemp = sin(6.0*push.time + 2.0*s.x + 5.0*s.y - 4.0*s.z);
+					colTemp *= colTemp;
+					float colTemp2 = cos(4.2*push.time - 8.0*s.x - 5.0*s.y - 7.0*s.z);
+					colTemp2 *= colTemp2;
+					colTemp = (colTemp + colTemp2) / 2.0;
+
+					vec3 col = voxel.averageColour.xyz;
+					col = mix(col, vec3(1.0, 1.0, 1.0) - col, colTemp);
+					return scaleColor(i, vec4(phongLighting(col, castShadowRay(p, push.lightDir, 1.0 / push.lightDir, maxDepth)), 1.0));
+				} else {
+					// Copy pasta empty cell
+					t = escapeCubeDistance(s, d, invD) * scale;
+					p += t * d;
+					travelDist += t;
+				}
+			} else {
+				gradient = cubeNorm(s);
+
+				p += projectToOutsideDistance(s) * scale;
+				return scaleColor(i, vec4(phongLighting(voxel.averageColour.xyz, castShadowRay(p, push.lightDir, 1.0 / push.lightDir, maxDepth)), 1.0));
+			}
 		}
 	} while(++i < maxIterations && insideCube(p));
 	return scaleColor(i, escapeColour(d));
 }
 
-const float fov = (pi/1.775) / 2.0;
-const float fovX = sin(fov);
-float fovY = sin(push.screenHeightOverWidth * fov);
+//const float fov = (pi/1.775) / 2.0;
+const float fov = (pi/1.75) / 2.0;
+//const float fov = 0.890118;
+const float fovY = sin(fov);
+float fovX = push.aspectRatio * fovY;
 void main(void) {
 	vec3 direction = normalize(vec3(coord.x*fovX, -coord.y*fovY, 1.0));
 	direction = rotateByQuaternion(direction, push.cameraQuaternion);

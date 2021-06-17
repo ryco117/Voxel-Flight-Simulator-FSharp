@@ -6,8 +6,7 @@ open LightDevice
 
 let maxFramesInFlight = 3
 
-type LightSwapchain (device: LightDevice, oldSwapchain': LightSwapchain option) =
-    let mutable oldSwapchain = oldSwapchain'
+type LightSwapchain (device: LightDevice, oldSwapchain: LightSwapchain option) =
     // Create Swapchain first
     let swapchain, swapchainImageFormat, swapchainExtent =
         let formats, modes, capabilities = device.GetSwapchainSupport ()
@@ -190,13 +189,12 @@ type LightSwapchain (device: LightDevice, oldSwapchain': LightSwapchain option) 
 
     // Cleanup previous swapchain
     do match oldSwapchain with
-        | Some chain ->
-            (chain :> System.IDisposable).Dispose ()
-            oldSwapchain <- None
+        | Some chain -> (chain :> System.IDisposable).Dispose ()
         | None -> ()
 
     let mutable currentFrame = 0
     let timeout = System.UInt64.MaxValue
+    let aspectRatio = (float32 swapchainExtent.Width) / (float32 swapchainExtent.Height)
 
     let waitForFence fence = device.Device.WaitForFences ([|fence|], Bool32.op_Implicit true, timeout)
 
@@ -209,6 +207,8 @@ type LightSwapchain (device: LightDevice, oldSwapchain': LightSwapchain option) 
     member _.GetFramebuffer index = swapchainFramebuffers.[index]
 
     member _.Extent = swapchainExtent
+
+    member _.ExtentAspectRatio = aspectRatio
 
     member _.ImageCount = imageCount
 
@@ -242,7 +242,7 @@ type LightSwapchain (device: LightDevice, oldSwapchain': LightSwapchain option) 
     member _.DepthFormat = swapchainDepthFormat
     member _.ImageFormat = swapchainImageFormat
     member _.CompareSwapFormats (swapchain': LightSwapchain) =
-        // TODO: Is possible for more subtle differences to occur, but given current contstruction of render pass this will suffice
+        // TODO: Is possible for more subtle differences to occur, but given current construction of render pass this will suffice
         swapchain'.DepthFormat = swapchainDepthFormat && swapchain'.ImageFormat = swapchainImageFormat
 
     interface System.IDisposable with

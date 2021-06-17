@@ -36,8 +36,6 @@ type LightVulkanWindow (width: int, height: int, title: string) as self =
             self.ClientSize <- System.Drawing.Size (int extent.Width, int extent.Height)
             self.Resized <- true
 
-    member self.ScreenRatio = (float32 self.Height) / (float32 self.Width)
-
     member _.Resized 
         with get () = resized
         and set resized' = resized <- resized'

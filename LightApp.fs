@@ -10,6 +10,7 @@ open LightModel
 open LightObject
 open LightState
 
+let initialPosition = System.Numerics.Vector3 (0.f, 0.125f, -2.5f)
 let newDefaultState () = {
     demoControls = true
     keyForwardInput = 0.f
@@ -20,7 +21,7 @@ let newDefaultState () = {
     keyStrafeRightInput = 0.f
     lastFrameTime = 0.
     lastSpeed = 0.f
-    playerPosition = System.Numerics.Vector3 (0.f, 0.125f, -2.5f)
+    playerPosition = initialPosition
     playerQuaternion = Maths.Vector4.UnitQuaternion
     upTime = System.Diagnostics.Stopwatch.StartNew ()
     gameObjects = Array.empty}
@@ -29,8 +30,17 @@ let resetPlayer state =
     state.upTime.Restart ()
     {state with
         demoControls = true
+        playerPosition = initialPosition
+        playerQuaternion = Maths.Vector4.UnitQuaternion
         lastFrameTime = 0.
         lastSpeed = 0.f}
+
+let takePortal state =
+    state.upTime.Restart ()
+    {state with
+        playerPosition = initialPosition
+        playerQuaternion = Maths.Vector4.UnitQuaternion
+        lastFrameTime = 0.}
 
 type LightApp () =
     let window = new LightVulkanWindow (600, 400, "Volcano")
@@ -59,8 +69,11 @@ type LightApp () =
                 state <- {state with lastFrameTime = state.upTime.Elapsed.TotalSeconds}
             else
                 match Voxels.octreeScaleAndCollisionOfPoint state.playerPosition renderSystem.VoxelData with
-                | _, true -> state <- resetPlayer state
-                | currentScale, false ->
+                | _, Voxels.Intersection.Collision -> state <- resetPlayer state
+                | _, Voxels.Intersection.Portal ->
+                    renderSystem.RegenerateWorld ()
+                    state <- takePortal state
+                | currentScale, Voxels.Intersection.EmptySpace ->
                     let deltaTime =
                         state.upTime.Elapsed.TotalSeconds - state.lastFrameTime
                         |> float32
@@ -90,7 +103,7 @@ type LightApp () =
             match renderer.BeginFrame () with
             | Some commandBuffer ->
                 renderer.BeginSwapchainRenderPass commandBuffer
-                renderSystem.RenderGameObjects commandBuffer state window.ScreenRatio
+                renderSystem.RenderGameObjects commandBuffer state renderer.AspectRatio
                 renderer.EndSwapchainRenderPass commandBuffer
                 renderer.EndFrame ()
             | None -> ()
@@ -183,9 +196,9 @@ type LightApp () =
             else
                 let i16ToF32 (i: int16) =
                     if i > 0s then
-                        if i < 2000s then 0.f else float32 i / 32767.f
+                        if i < 3000s then 0.f else float32 i / 32767.f
                     else
-                        if i > -2000s then 0.f else float32 i / -32768.f
+                        if i > -3000s then 0.f else float32 i / -32768.f
                 let byteToF32 (i: byte) = if i < 8uy then 0.f else float32 i / 255.f
                 let forward, backward =
                     let t = max (i16ToF32 args.LeftThumbY) 0.f

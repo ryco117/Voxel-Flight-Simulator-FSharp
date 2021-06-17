@@ -42,6 +42,8 @@ type LightRenderer (window: LightVulkanWindow, device: LightDevice) =
 
     member _.SwapchainRenderPass = swapchain.RenderPass
 
+    member _.AspectRatio = swapchain.ExtentAspectRatio
+
     member _.CurrentCommandBuffer =
         assert isFrameStarted
         commandBuffers.[currentFrameIndex]
