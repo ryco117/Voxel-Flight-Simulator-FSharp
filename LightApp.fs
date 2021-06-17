@@ -87,7 +87,7 @@ type LightApp () =
                         |> state.playerQuaternion.RotateVectorAsQuaternion
                     let roll = Maths.Vector4.BuildQuaternion System.Numerics.Vector3.UnitZ (deltaTime * (state.keyLeftInput - state.keyRightInput))
                     let pitch = Maths.Vector4.BuildQuaternion System.Numerics.Vector3.UnitX (0.75f * deltaTime * (state.keyForwardInput - state.keyBackInput))
-                    let yaw = Maths.Vector4.BuildQuaternion System.Numerics.Vector3.UnitY (0.25f * deltaTime * (state.keyStrafeRightInput - state.keyStrafeLeftInput))
+                    let yaw = Maths.Vector4.BuildQuaternion System.Numerics.Vector3.UnitY (0.3f * deltaTime * (state.keyStrafeRightInput - state.keyStrafeLeftInput))
                     let deltaP = deltaTime*forward
                     state <-
                         {state with
