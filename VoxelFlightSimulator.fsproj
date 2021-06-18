@@ -12,6 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="README.md" />
     <None Include="compile_shaders.bat" />
     <None Include="shaders\ray_march.frag" />
     <None Include="shaders\ray_march_voxels.frag" />

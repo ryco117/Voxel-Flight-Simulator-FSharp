@@ -184,7 +184,6 @@ type LightApp () =
             | Keys.E -> state <- {state with keyStrafeRightInput = 0.f}
             | _ -> ()
         window.HandleKeyUp <- Some handleKeyUp
-
         let handleController = function
         | None -> ()
         | Some (args: SharpDX.XInput.Gamepad) ->
@@ -194,12 +193,13 @@ type LightApp () =
                 renderSystem.RegenerateWorld ()
                 state <- resetPlayer state
             else
+                let mutable noInput = state.demoControls
                 let i16ToF32 (i: int16) =
                     if i > 0s then
-                        if i < 3000s then 0.f else float32 i / 32767.f
+                        if i < 3000s then 0.f else noInput <- false; float32 i / 32767.f
                     else
-                        if i > -3000s then 0.f else float32 i / -32768.f
-                let byteToF32 (i: byte) = if i < 8uy then 0.f else float32 i / 255.f
+                        if i > -3000s then 0.f else noInput <- false; float32 i / -32768.f
+                let byteToF32 (i: byte) = if i < 8uy then 0.f else noInput <- false; float32 i / 255.f
                 let forward, backward =
                     let t = max (i16ToF32 args.LeftThumbY) 0.f
                     if args.LeftThumbY > 0s then
@@ -214,27 +214,28 @@ type LightApp () =
                         0.f, t
                 let strafeRight = byteToF32 args.RightTrigger
                 let strafeLeft = byteToF32 args.LeftTrigger
-                state <-
-                    if state.demoControls then
-                        let time = float32 state.upTime.Elapsed.TotalSeconds
-                        {state with
-                            demoControls = false
-                            playerPosition = demoCameraPosition time
-                            playerQuaternion = demoCameraQuaternion time
-                            keyForwardInput = forward
-                            keyBackInput = backward
-                            keyRightInput = right
-                            keyLeftInput = left
-                            keyStrafeLeftInput = strafeLeft
-                            keyStrafeRightInput = strafeRight}
-                    else
-                        {state with
-                            keyForwardInput = forward
-                            keyBackInput = backward
-                            keyRightInput = right
-                            keyLeftInput = left
-                            keyStrafeLeftInput = strafeLeft
-                            keyStrafeRightInput = strafeRight}
+                if not noInput then
+                    state <-
+                        if state.demoControls then
+                            let time = float32 state.upTime.Elapsed.TotalSeconds
+                            {state with
+                                demoControls = false
+                                playerPosition = demoCameraPosition time
+                                playerQuaternion = demoCameraQuaternion time
+                                keyForwardInput = forward
+                                keyBackInput = backward
+                                keyRightInput = right
+                                keyLeftInput = left
+                                keyStrafeLeftInput = strafeLeft
+                                keyStrafeRightInput = strafeRight}
+                        else
+                            {state with
+                                keyForwardInput = forward
+                                keyBackInput = backward
+                                keyRightInput = right
+                                keyLeftInput = left
+                                keyStrafeLeftInput = strafeLeft
+                                keyStrafeRightInput = strafeRight}
         window.HandleController <- Some handleController
 
         System.Windows.Forms.Application.Run window
