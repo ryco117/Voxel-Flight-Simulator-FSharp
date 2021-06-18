@@ -302,14 +302,12 @@ vec4 castVoxelRay(vec3 p, vec3 d) {
 					travelDist += t;
 					gradient = normalize(s);
 
-					float colTemp = sin(6.0*push.time + 2.0*s.x + 5.0*s.y - 4.0*s.z);
-					colTemp *= colTemp;
-					float colTemp2 = cos(4.2*push.time - 8.0*s.x - 5.0*s.y - 7.0*s.z);
-					colTemp2 *= colTemp2;
+					float colTemp = sin(6.5*push.time + 1.5*s.x + 2.0*s.y - 1.75*s.z);
+					float colTemp2 = cos(8.0*push.time - 2.5*s.x - 3.0*s.y - 2.0*s.z);
 					colTemp = (colTemp + colTemp2) / 2.0;
-
 					vec3 col = voxel.averageColour.xyz;
-					col = mix(col, vec3(1.0, 1.0, 1.0) - col, colTemp);
+					col = mix(col, vec3(0.0), min(colTemp, tan(8.0*push.time - 12.0*(dot(s, push.lightDir)))));
+
 					return scaleColor(i, vec4(phongLighting(col, castShadowRay(p, push.lightDir, 1.0 / push.lightDir, maxDepth)), 1.0));
 				} else {
 					// Copy pasta empty cell

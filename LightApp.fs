@@ -43,7 +43,7 @@ let takePortal state =
         lastFrameTime = 0.}
 
 type LightApp () =
-    let window = new LightVulkanWindow (600, 400, "Volcano")
+    let window = new LightVulkanWindow (600, 400, "Voxel Flight Simulator")
     let device = new LightDevice (window)
     let renderer = new LightRenderer (window, device)
 
@@ -78,16 +78,16 @@ type LightApp () =
                         state.upTime.Elapsed.TotalSeconds - state.lastFrameTime
                         |> float32
                     let newSpeed =
-                        let defaultSpeed = 0.25f
-                        let tempNew = defaultSpeed * System.MathF.Pow (currentScale, 0.3f)
-                        let frac = exp ((if tempNew > state.lastSpeed then -0.5f else -2.f) * deltaTime)
+                        let defaultSpeed = 0.2f
+                        let tempNew = defaultSpeed * System.MathF.Pow (currentScale, 0.4f)
+                        let frac = exp ((if tempNew > state.lastSpeed then -0.4f else -2.5f) * deltaTime)
                         frac * state.lastSpeed + (1.f - frac) * tempNew
                     let forward =
                         newSpeed * System.Numerics.Vector3.UnitZ
                         |> state.playerQuaternion.RotateVectorAsQuaternion
                     let roll = Maths.Vector4.BuildQuaternion System.Numerics.Vector3.UnitZ (deltaTime * (state.keyLeftInput - state.keyRightInput))
                     let pitch = Maths.Vector4.BuildQuaternion System.Numerics.Vector3.UnitX (0.75f * deltaTime * (state.keyForwardInput - state.keyBackInput))
-                    let yaw = Maths.Vector4.BuildQuaternion System.Numerics.Vector3.UnitY (0.3f * deltaTime * (state.keyStrafeRightInput - state.keyStrafeLeftInput))
+                    let yaw = Maths.Vector4.BuildQuaternion System.Numerics.Vector3.UnitY (0.35f * deltaTime * (state.keyStrafeRightInput - state.keyStrafeLeftInput))
                     let deltaP = deltaTime*forward
                     state <-
                         {state with

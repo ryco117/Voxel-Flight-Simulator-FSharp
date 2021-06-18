@@ -36,8 +36,8 @@ type PushConstantData =
 let pushConstantSize = sizeof<PushConstantData>
 
 let recursiveVoxelLeafCount = 2048
-let uniqueGoalCount = 4
-let minGoalDepth = 6
+let uniqueGoalCount = 3
+let minGoalDepth = 7
 let createNewVoxelWorld () =
     let voxels = generateRecursiveVoxelOctree recursiveVoxelLeafCount
     addRandomGoals uniqueGoalCount minGoalDepth voxels
