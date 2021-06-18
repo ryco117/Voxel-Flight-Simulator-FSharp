@@ -264,7 +264,7 @@ let addRandomGoals n minDepth (octree: VoxelCompact[]) =
             else
                 setVoxel ()
         else
-            if depth < minDepth || Helpers.random.NextDouble () > 0.5 then
+            if depth < minDepth || Helpers.random.NextDouble () > 0.75 then
                 let randChild () =
                     match Helpers.random.Next 8 with
                     | 0 -> voxel.nodeFTL

@@ -80,14 +80,14 @@ type LightApp () =
                     let newSpeed =
                         let defaultSpeed = 0.2f
                         let tempNew = defaultSpeed * System.MathF.Pow (currentScale, 0.4f)
-                        let frac = exp ((if tempNew > state.lastSpeed then -0.4f else -2.5f) * deltaTime)
+                        let frac = exp ((if tempNew > state.lastSpeed then -0.4f else -2.75f) * deltaTime)
                         frac * state.lastSpeed + (1.f - frac) * tempNew
                     let forward =
                         newSpeed * System.Numerics.Vector3.UnitZ
                         |> state.playerQuaternion.RotateVectorAsQuaternion
                     let roll = Maths.Vector4.BuildQuaternion System.Numerics.Vector3.UnitZ (deltaTime * (state.keyLeftInput - state.keyRightInput))
-                    let pitch = Maths.Vector4.BuildQuaternion System.Numerics.Vector3.UnitX (0.75f * deltaTime * (state.keyForwardInput - state.keyBackInput))
-                    let yaw = Maths.Vector4.BuildQuaternion System.Numerics.Vector3.UnitY (0.35f * deltaTime * (state.keyStrafeRightInput - state.keyStrafeLeftInput))
+                    let pitch = Maths.Vector4.BuildQuaternion System.Numerics.Vector3.UnitX (0.8f * deltaTime * (state.keyForwardInput - state.keyBackInput))
+                    let yaw = Maths.Vector4.BuildQuaternion System.Numerics.Vector3.UnitY (0.375f * deltaTime * (state.keyStrafeRightInput - state.keyStrafeLeftInput))
                     let deltaP = deltaTime*forward
                     state <-
                         {state with
