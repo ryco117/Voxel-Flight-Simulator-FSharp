@@ -251,7 +251,7 @@ let octreeScaleAndCollisionOfPoint (v: System.Numerics.Vector3) (octree: VoxelCo
         1.f / scaleInv, intersection
 
 let addRandomGoals n minDepth (octree: VoxelCompact[]) =
-    let goalColour = Vector4 (0.4f, 0.05f, 0.6f, 1.f)
+    let goalColour = Vector4 (0.6f, 0.1f, 0.8f, 1.f)
     let rec replaceVoxel selfIndex depth =
         let selfI = int selfIndex
         let voxel = octree.[selfI]
@@ -264,7 +264,7 @@ let addRandomGoals n minDepth (octree: VoxelCompact[]) =
             else
                 setVoxel ()
         else
-            if depth < minDepth || Helpers.random.NextDouble () > 0.75 then
+            if depth < minDepth || Helpers.random.NextDouble () > 0.9 then
                 let randChild () =
                     match Helpers.random.Next 8 with
                     | 0 -> voxel.nodeFTL
