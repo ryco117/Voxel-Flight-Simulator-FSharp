@@ -10,7 +10,9 @@ open LightModel
 open LightObject
 open LightState
 
+let defaultSpeed = 0.25f
 let initialPosition = System.Numerics.Vector3 (0.f, 0.125f, -2.5f)
+
 let newDefaultState () = {
     demoControls = true
     keyForwardInput = 0.f
@@ -35,12 +37,14 @@ let resetPlayer state =
         lastFrameTime = 0.
         lastSpeed = 0.f}
 
+let portalRandom = System.Random 69_420
 let takePortal state =
     state.upTime.Restart ()
     {state with
         playerPosition = initialPosition
         playerQuaternion = Maths.Vector4.UnitQuaternion
-        lastFrameTime = 0.}
+        lastFrameTime = 0.
+        lastSpeed = defaultSpeed}
 
 type LightApp () =
     let window = new LightVulkanWindow (600, 400, "Voxel Flight Simulator")
@@ -70,17 +74,18 @@ type LightApp () =
             else
                 match Voxels.octreeScaleAndCollisionOfPoint state.playerPosition renderSystem.VoxelData with
                 | _, Voxels.Intersection.Collision -> state <- resetPlayer state
-                | _, Voxels.Intersection.Portal ->
-                    renderSystem.RegenerateWorld ()
+                | _, Voxels.Intersection.Portal index ->
+                    let t = portalRandom.Next () ^^^ int index in (if t = System.Int32.MinValue then t + 1 else t)
+                    |> System.Random
+                    |> renderSystem.RegenerateWorld
                     state <- takePortal state
                 | currentScale, Voxels.Intersection.EmptySpace ->
                     let deltaTime =
                         state.upTime.Elapsed.TotalSeconds - state.lastFrameTime
                         |> float32
                     let newSpeed =
-                        let defaultSpeed = 0.2f
-                        let tempNew = defaultSpeed * System.MathF.Pow (currentScale, 0.4f)
-                        let frac = exp ((if tempNew > state.lastSpeed then -0.4f else -2.75f) * deltaTime)
+                        let tempNew = defaultSpeed * System.MathF.Pow (currentScale, 0.425f)
+                        let frac = exp ((if tempNew > state.lastSpeed then -0.375f else -2.75f) * deltaTime)
                         frac * state.lastSpeed + (1.f - frac) * tempNew
                     let forward =
                         newSpeed * System.Numerics.Vector3.UnitZ
@@ -113,7 +118,7 @@ type LightApp () =
             match args.KeyCode with
             | Keys.Escape -> exit 0
             | Keys.F5 ->
-                renderSystem.RegenerateWorld ()
+                renderSystem.RegenerateWorld portalRandom
                 state <- resetPlayer state
             | Keys.R when args.Control ->
                 state <- resetPlayer state
@@ -187,10 +192,12 @@ type LightApp () =
         let handleController = function
         | None -> ()
         | Some (args: SharpDX.XInput.Gamepad) ->
-            if args.Buttons.HasFlag SharpDX.XInput.GamepadButtonFlags.B then
+            if args.Buttons.HasFlag SharpDX.XInput.GamepadButtonFlags.Back then
+                exit 0
+            elif args.Buttons.HasFlag SharpDX.XInput.GamepadButtonFlags.B then
                 state <- resetPlayer state
             elif args.Buttons.HasFlag SharpDX.XInput.GamepadButtonFlags.Start then
-                renderSystem.RegenerateWorld ()
+                renderSystem.RegenerateWorld portalRandom
                 state <- resetPlayer state
             else
                 let mutable noInput = state.demoControls

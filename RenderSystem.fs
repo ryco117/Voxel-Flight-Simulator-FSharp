@@ -37,15 +37,15 @@ let pushConstantSize = sizeof<PushConstantData>
 
 let recursiveVoxelLeafCount = 2048
 let uniqueGoalCount = 3
-let minGoalDepth = 7
-let createNewVoxelWorld () =
-    let voxels = generateRecursiveVoxelOctree recursiveVoxelLeafCount
-    addRandomGoals uniqueGoalCount minGoalDepth voxels
+let minGoalDepth = 6
+let createNewVoxelWorld random =
+    let voxels = generateRecursiveVoxelOctree random recursiveVoxelLeafCount
+    addRandomGoals random uniqueGoalCount minGoalDepth voxels
     voxels
 
 type LightRenderSystem (device: LightDevice, initialRenderPass: RenderPass) =
      // Create Shader Storage Buffer to contain a sparse-voxel-octree
-    let mutable voxelData =createNewVoxelWorld ()
+    let mutable voxelData = createNewVoxelWorld (System.Random 0)
     let createVoxelBufferMemory (voxelData: VoxelCompact[]) =
         let voxelBufferDeviceSize = DeviceSize.op_Implicit (sizeof<VoxelCompact> * voxelData.Length)
         let buffer, memory = device.CreateBuffer voxelBufferDeviceSize BufferUsageFlags.StorageBuffer (MemoryPropertyFlags.HostVisible + MemoryPropertyFlags.HostCoherent)
@@ -119,12 +119,12 @@ type LightRenderSystem (device: LightDevice, initialRenderPass: RenderPass) =
 
     member _.VoxelData = voxelData
 
-    member _.RegenerateWorld () =
+    member _.RegenerateWorld random =
         device.Device.WaitIdle ()   // Cannot delete buffer while device is using it ;)
         device.Device.DestroyBuffer voxelBuffer
         device.Device.FreeMemory voxelBufferMemory
 
-        voxelData <- createNewVoxelWorld ()
+        voxelData <- createNewVoxelWorld random
         match createVoxelBufferMemory voxelData with
         | buffer, memory, deviceSize ->
             voxelBuffer <- buffer

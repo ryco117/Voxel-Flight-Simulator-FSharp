@@ -121,15 +121,17 @@ let compactOctreeFromRoot rootVoxel =
     |> List.rev
     |> List.toArray
 
-let randomColour () = Vector4 (Helpers.randomFloat (), Helpers.randomFloat (), Helpers.randomFloat (), 1.f)
+let randomColour (random: System.Random) =
+    let randF () = random.NextDouble () |> float32
+    Vector4 (randF (), randF (), randF (), 1.f)
 
-let randomLeaf () =
-    let colour = randomColour ()
+let randomLeaf random =
+    let colour = randomColour random
     {emptyLeafVoxel with averageColour = colour}
 
-let generateRecursiveVoxelOctree n =
+let generateRecursiveVoxelOctree (random: System.Random) n =
     let rec randomRecurse maxDepth =
-        if maxDepth > 0 && Helpers.random.NextDouble () > 0.85 then
+        if maxDepth > 0 && random.NextDouble () > 0.8 then
             Parent (randomRecurse (maxDepth - 1))
         else
             Self
@@ -138,7 +140,7 @@ let generateRecursiveVoxelOctree n =
         |> int
     let queue = System.Collections.Generic.Queue ()
     for _ = 0 to (int n - 1) do
-        randomLeaf ()
+        randomLeaf random
         |> queue.Enqueue
     while queue.Count > 1 do
         let rec rollVoxel () =
@@ -146,15 +148,15 @@ let generateRecursiveVoxelOctree n =
             let mutable colour = Vector4 (0.f)
             let mutable weight = 0.f
             let popNodeOption () =
-                let randomType = Helpers.random.NextDouble ()
+                let randomType = random.NextDouble ()
                 if queue.Count = 0 then
-                    if randomType > 0.69 then
+                    if randomType > 0.675 then
                         Recurse (randomRecurse maxRecurseDepth)
                     else
                         Empty
                 else
-                    if randomType > 0.45 then
-                        if randomType > 0.825 then
+                    if randomType > 0.4 then
+                        if randomType > 0.85 then
                             Recurse (randomRecurse maxRecurseDepth)
                         else
                             let voxel = queue.Dequeue ()
@@ -205,7 +207,7 @@ let generateRecursiveVoxelOctree n =
 type Intersection =
 | EmptySpace
 | Collision
-| Portal
+| Portal of uint32
 
 let octreeScaleAndCollisionOfPoint (v: System.Numerics.Vector3) (octree: VoxelCompact[]) =
     let maxDepth = 11   // TODO: Unify maxDepth between shader and cpu programatically
@@ -218,7 +220,7 @@ let octreeScaleAndCollisionOfPoint (v: System.Numerics.Vector3) (octree: VoxelCo
         if voxel.flags &&& 1u > 0u then
             scale, Collision
         elif voxel.flags &&& 2u > 0u then
-            scale, if System.Numerics.Vector3.Dot (p, p) < 0.75f then Portal else EmptySpace
+            scale, if System.Numerics.Vector3.Dot (p, p) < 0.75f then Portal index else EmptySpace
         else
             let func p =
                 f (scale + scale) (iter + 1) (p+p)
@@ -250,12 +252,12 @@ let octreeScaleAndCollisionOfPoint (v: System.Numerics.Vector3) (octree: VoxelCo
         let scaleInv, intersection = f 1.f 0 v 0u
         1.f / scaleInv, intersection
 
-let addRandomGoals n minDepth (octree: VoxelCompact[]) =
-    let goalColour = Vector4 (0.6f, 0.1f, 0.8f, 1.f)
+let addRandomGoals (random: System.Random) n minDepth (octree: VoxelCompact[]) =
+    //let goalColour = Vector4 (0.6f, 0.1f, 0.8f, 1.f)
     let rec replaceVoxel selfIndex depth =
         let selfI = int selfIndex
         let voxel = octree.[selfI]
-        let setVoxel () = octree.[selfI] <- VoxelCompact (goalColour, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, 2u); true
+        let setVoxel () = octree.[selfI] <- VoxelCompact (randomColour random, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, 2u); true
         if voxel.flags &&& 2u > 0u then
             false
         elif voxel.flags &&& 1u > 0u then
@@ -264,9 +266,9 @@ let addRandomGoals n minDepth (octree: VoxelCompact[]) =
             else
                 setVoxel ()
         else
-            if depth < minDepth || Helpers.random.NextDouble () > 0.9 then
+            if depth < minDepth || random.NextDouble () > 0.95 then
                 let randChild () =
-                    match Helpers.random.Next 8 with
+                    match random.Next 8 with
                     | 0 -> voxel.nodeFTL
                     | 1 -> voxel.nodeFTR
                     | 2 -> voxel.nodeFBL
