@@ -17,4 +17,4 @@ The [SharpDX](https://github.com/sharpdx/SharpDX) NuGet package is taken as a de
 | `ESC` | `BACK` | Close application |
 | `F11` | N/A | Toggle borderless fullscreen on primary display |
 | `CTRL`+`R` | `B` | Reset player to start of current world |
-|| `F5` | `Start` | Randomize world and reset player |
+| `F5` | `Start` | Randomize world and reset player |
