@@ -11,7 +11,7 @@ open LightObject
 open LightState
 
 let defaultSpeed = 0.25f
-let initialPosition = System.Numerics.Vector3 (0.f, 0.125f, -2.5f)
+let initialPosition = System.Numerics.Vector3 (0.f, 0.125f, -2.f)
 
 let newDefaultState () = {
     demoControls = true
@@ -37,7 +37,7 @@ let resetPlayer state =
         lastFrameTime = 0.
         lastSpeed = 0.f}
 
-let portalRandom = System.Random 69_420
+let mutable portalRandom = System.Random 0
 let takePortal state =
     state.upTime.Restart ()
     {state with
@@ -118,7 +118,13 @@ type LightApp () =
             match args.KeyCode with
             | Keys.Escape -> exit 0
             | Keys.F5 ->
-                renderSystem.RegenerateWorld portalRandom
+                let portalSeed, worldGen =
+                    if args.Shift then
+                        0, System.Random 0
+                    else
+                        Helpers.random.Next (), Helpers.random
+                portalRandom <- System.Random portalSeed
+                renderSystem.RegenerateWorld worldGen
                 state <- resetPlayer state
             | Keys.R when args.Control ->
                 state <- resetPlayer state

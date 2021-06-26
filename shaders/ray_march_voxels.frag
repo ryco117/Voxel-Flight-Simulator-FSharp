@@ -32,7 +32,7 @@ layout(set = 0, binding = 0) readonly buffer VoxelOctree {
 
 const float pi = 3.14159265358;
 const float e = 2.718281828;
-const int maxIterations = 40;
+const int maxIterations = 35;
 const float epsilon = 0.0001;
 const float unitEpsilon = 1.0 + epsilon;
 const vec3 dirX = vec3(1.0, 0.0, 0.0);
@@ -203,7 +203,7 @@ uint voxelIndex(inout vec3 p, inout float scale, int scaleDepth) {
 }
 
 float goalVoxelTraversal(inout vec3 p, vec3 d) {
-	float t = dot(d, -p);
+	/*float t = dot(d, -p);
 	if(t >= 0.0) {
 		vec3 s = t * d + p;
 		float r2 = dot(s, s);
@@ -211,6 +211,14 @@ float goalVoxelTraversal(inout vec3 p, vec3 d) {
 			p = s;
 			return t;
 		}
+	}*/
+	float pd = dot(d, p);
+	float r = 4.0*(pd*pd - dot(p, p) + 0.75);
+	if(r >= 0.0) {
+		float t = (-2.0*pd - sqrt(r))/2.0;
+		vec3 s = t * d + p;
+		p = s;
+		return t;
 	}
 	return -1.0;
 }
@@ -283,7 +291,7 @@ vec4 castVoxelRay(vec3 p, vec3 d) {
 	do {
 		vec3 s = p;
 		float scale = 1.0;
-		int maxDepth = clamp(10 - int(1.4427*log(travelDist)), 3, 11);
+		int maxDepth = clamp(int(9.75 - 1.44269*log(travelDist)), 3, 11);
 		uint index = voxelIndex(s, scale, maxDepth);
 
 		// Is empty or filled?
@@ -302,11 +310,11 @@ vec4 castVoxelRay(vec3 p, vec3 d) {
 					travelDist += t;
 					gradient = normalize(s);
 
-					float colTemp = sin(6.5*push.time + 1.5*s.x + 2.0*s.y - 1.75*s.z);
-					float colTemp2 = cos(8.0*push.time - 2.5*s.x - 3.0*s.y - 2.0*s.z);
+					float colTemp = sin(7.0*push.time + 1.25*s.x + 1.5*s.y - 1.5*s.z);
+					float colTemp2 = cos(8.0*push.time - 2.5*s.x * 3.0*s.y * 2.0*s.z);
 					colTemp = (colTemp + colTemp2) / 2.0;
 					vec3 col = voxel.averageColour.xyz;
-					col = mix(col, vec3(0.0), min(colTemp, tan(8.0*push.time - 12.0*(dot(s, push.lightDir)))));
+					col = mix(col, vec3(0.0), min(colTemp, tan(8.0*push.time - 12.0*(dot(s, d)))));
 
 					return scaleColor(i, vec4(phongLighting(col, castShadowRay(p, push.lightDir, 1.0 / push.lightDir, maxDepth)), 1.0));
 				} else {

@@ -155,8 +155,8 @@ let generateRecursiveVoxelOctree (random: System.Random) n =
                     else
                         Empty
                 else
-                    if randomType > 0.4 then
-                        if randomType > 0.85 then
+                    if randomType > 0.45 then
+                        if randomType > 0.825 then
                             Recurse (randomRecurse maxRecurseDepth)
                         else
                             let voxel = queue.Dequeue ()
@@ -253,15 +253,18 @@ let octreeScaleAndCollisionOfPoint (v: System.Numerics.Vector3) (octree: VoxelCo
         1.f / scaleInv, intersection
 
 let addRandomGoals (random: System.Random) n minDepth (octree: VoxelCompact[]) =
-    //let goalColour = Vector4 (0.6f, 0.1f, 0.8f, 1.f)
-    let rec replaceVoxel selfIndex depth =
+    let mutable parentSet = Collections.Set<int> []
+    let rec replaceVoxel selfIndex parent depth =
         let selfI = int selfIndex
         let voxel = octree.[selfI]
-        let setVoxel () = octree.[selfI] <- VoxelCompact (randomColour random, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, 2u); true
+        let setVoxel () =
+            octree.[int selfIndex] <- VoxelCompact (randomColour random, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, 2u)
+            parentSet <- parentSet.Add parent
+            true
         if voxel.flags &&& 2u > 0u then
             false
         elif voxel.flags &&& 1u > 0u then
-            if depth < minDepth then
+            if depth < minDepth || parentSet.Contains parent then
                 false
             else
                 setVoxel ()
@@ -281,10 +284,12 @@ let addRandomGoals (random: System.Random) n minDepth (octree: VoxelCompact[]) =
                 let mutable newIndex = randChild ()
                 while newIndex = nullVoxelIndex || newIndex <= selfIndex do
                     newIndex <- randChild ()
-                replaceVoxel newIndex (depth + 1)
-            else
+                replaceVoxel newIndex selfI (depth + 1)
+            elif not (parentSet.Contains parent) then
                 setVoxel ()
+            else
+                false
     let mutable count = 0
     while count < n do
-        if replaceVoxel 0u 0 then
+        if replaceVoxel 0u 0 0 then
             count <- count + 1
