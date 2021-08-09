@@ -32,7 +32,7 @@ let btrCell = System.Numerics.Vector3 (0.5f, 0.5f, 0.5f)
 let bblCell = System.Numerics.Vector3 (-0.5f, -0.5f, 0.5f)
 let bbrCell = System.Numerics.Vector3 (0.5f, -0.5f, 0.5f)
 
-let emptyLeafVoxel = {
+let leafVoxel = {
     averageColour = Vector4.Zero
     nodeFTL = Recurse Self; nodeFTR = Recurse Self; nodeFBL = Recurse Self; nodeFBR = Recurse Self
     nodeBTL = Recurse Self; nodeBTR = Recurse Self; nodeBBL = Recurse Self; nodeBBR = Recurse Self
@@ -127,7 +127,10 @@ let randomColour (random: System.Random) =
 
 let randomLeaf random =
     let colour = randomColour random
-    {emptyLeafVoxel with averageColour = colour}
+    if random.NextDouble () > 0.125 then
+        {leafVoxel with averageColour = colour}
+    else
+        {leafVoxel with averageColour = colour; flags = 4u}
 
 let generateRecursiveVoxelOctree (random: System.Random) n =
     let rec randomRecurse maxDepth =
@@ -191,33 +194,20 @@ let generateRecursiveVoxelOctree (random: System.Random) n =
     queue.Dequeue ()
     |> compactOctreeFromRoot
 
-(*let octreeDistance (v: System.Numerics.Vector3) (octree: VoxelCompact[]) =
-    let rec f p minDist = function
-    | [] ->
-        match minDist with
-        | Some dist -> dist
-        | None -> raise (System.Exception "No distance found")
-    | (index, scale)::tail ->
-        let voxel = octree.[index]
-        let expandSearch bfs = function
-        | childIndex when childIndex = nullVoxelIndex -> bfs
-        | childIndex -> 
-    f v None [0u, 1.f]*)
-
 type Intersection =
 | EmptySpace
 | Collision
 | Portal of uint32
 
 let octreeScaleAndCollisionOfPoint (v: System.Numerics.Vector3) (octree: VoxelCompact[]) =
-    let maxDepth = 11   // TODO: Unify maxDepth between shader and cpu programatically
+    let maxDepth = 10   // TODO: Unify maxDepth between shader and cpu programatically
     let rec f (scale: float32) iter (p: System.Numerics.Vector3) = function
     | _ when iter = maxDepth -> scale, Collision
     | index when index = nullVoxelIndex -> scale, EmptySpace
     | index ->
         let i = int index
         let voxel = octree.[i]
-        if voxel.flags &&& 1u > 0u then
+        if voxel.flags &&& 5u > 0u then
             scale, Collision
         elif voxel.flags &&& 2u > 0u then
             scale, if System.Numerics.Vector3.Dot (p, p) < 0.75f then Portal index else EmptySpace
@@ -261,7 +251,7 @@ let addRandomGoals (random: System.Random) n minDepth (octree: VoxelCompact[]) =
             octree.[int selfIndex] <- VoxelCompact (randomColour random, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, selfIndex, 2u)
             parentSet <- parentSet.Add parent
             true
-        if voxel.flags &&& 2u > 0u then
+        if voxel.flags &&& 6u > 0u then
             false
         elif voxel.flags &&& 1u > 0u then
             if depth < minDepth || parentSet.Contains parent then

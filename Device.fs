@@ -105,19 +105,19 @@ type LightDevice (window: LightVulkanWindow) =
             else
                 [|graphicsInfo|]
         let deviceFeatures = PhysicalDeviceFeatures (SamplerAnisotropy = Bool32.op_Implicit true)
-        let createInfo =
+        let logic =
             new DeviceCreateInfo (
                 QueueCreateInfos = deviceQueueCreateInfos,
                 EnabledFeatures = deviceFeatures,
                 EnabledExtensionNames = deviceExtensions)
-        let logic = device.CreateDevice createInfo
+            |> device.CreateDevice
         logic, logic.GetQueue (graphicsIndex, 0u), logic.GetQueue (presentIndex, 0u)
 
     // Create Command Pool fifth
     let commandPool =
         let graphicsIndex, _presentIndex = findPhysicalQueueFamilies ()
-        let info = new CommandPoolCreateInfo (QueueFamilyIndex = graphicsIndex, Flags = CommandPoolCreateFlags.Transient + CommandPoolCreateFlags.ResetCommandBuffer)
-        logicalDevice.CreateCommandPool info
+        new CommandPoolCreateInfo (QueueFamilyIndex = graphicsIndex, Flags = CommandPoolCreateFlags.Transient + CommandPoolCreateFlags.ResetCommandBuffer)
+        |> logicalDevice.CreateCommandPool
 
     let findMemoryType (typeFilter: uint32) properties =
         let memProps = device.GetMemoryProperties ()
@@ -126,6 +126,23 @@ type LightDevice (window: LightVulkanWindow) =
             let r = (typeFilter &&& bit) > 0u && memType.PropertyFlags.HasFlag properties
             bit <- bit <<< 1
             r) memProps.MemoryTypes
+
+    let beginSingleTimeCommands () =
+        let commandBuffer =
+            let buffers =
+                new CommandBufferAllocateInfo (Level = CommandBufferLevel.Primary, CommandPool = commandPool, CommandBufferCount = 1u)
+                |> logicalDevice.AllocateCommandBuffers
+            buffers.[0]
+        new CommandBufferBeginInfo (Flags = CommandBufferUsageFlags.OneTimeSubmit)
+        |> commandBuffer.Begin
+        commandBuffer
+
+    let endSingleTimeCommands (commandBuffer: CommandBuffer) =
+        commandBuffer.End ()
+        new SubmitInfo (CommandBuffers = [|commandBuffer|])
+        |> graphicsQueue.Submit
+        graphicsQueue.WaitIdle ()
+        logicalDevice.FreeCommandBuffer (commandPool, commandBuffer)
 
     let mutable disposed = false
 
@@ -177,6 +194,12 @@ type LightDevice (window: LightVulkanWindow) =
         let bufferMemory = logicalDevice.AllocateMemory allocInfo
         logicalDevice.BindBufferMemory (buffer, bufferMemory, deviceSizeZero)
         buffer, bufferMemory
+
+    member _.CopyBuffer srcBuffer dstBuffer size =
+        let commandBuffer = beginSingleTimeCommands ()
+        let copyRegion = BufferCopy (Size = size)
+        commandBuffer.CmdCopyBuffer (srcBuffer, dstBuffer, copyRegion)
+        endSingleTimeCommands commandBuffer
 
     interface System.IDisposable with
         override _.Dispose () =

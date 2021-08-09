@@ -32,8 +32,8 @@ layout(set = 0, binding = 0) readonly buffer VoxelOctree {
 
 const float pi = 3.14159265358;
 const float e = 2.718281828;
-const int maxIterations = 35;
-const float epsilon = 0.0001;
+const int maxIterations = 40;
+const float epsilon = 0.00025;
 const float unitEpsilon = 1.0 + epsilon;
 const vec3 dirX = vec3(1.0, 0.0, 0.0);
 const vec3 dirY = vec3(0.0, 1.0, 0.0);
@@ -287,11 +287,15 @@ vec4 castVoxelRay(vec3 p, vec3 d) {
 	vec3 invD = 1.0 / d;
 	if(!projectToRootVoxel(p, d, invD, travelDist)) return escapeColour(d);
 
+	vec4 col = vec4(0.0);
+	float weight = 0.0;
+	int reflections = 0;
+
 	int i = 0;
 	do {
 		vec3 s = p;
 		float scale = 1.0;
-		int maxDepth = clamp(int(9.75 - 1.44269*log(travelDist)), 3, 11);
+		int maxDepth = clamp(int(9.85 - 1.4427*log(travelDist)), 3, 10);
 		uint index = voxelIndex(s, scale, maxDepth);
 
 		// Is empty or filled?
@@ -313,10 +317,11 @@ vec4 castVoxelRay(vec3 p, vec3 d) {
 					float colTemp = sin(7.0*push.time + 1.25*s.x + 1.5*s.y - 1.5*s.z);
 					float colTemp2 = cos(8.0*push.time - 2.5*s.x * 3.0*s.y * 2.0*s.z);
 					colTemp = (colTemp + colTemp2) / 2.0;
-					vec3 col = voxel.averageColour.xyz;
-					col = mix(col, vec3(0.0), min(colTemp, tan(8.0*push.time - 12.0*(dot(s, d)))));
+					vec3 portalCol = voxel.averageColour.xyz;
+					portalCol = mix(portalCol, vec3(0.0), min(colTemp, tan(8.0*push.time - 12.0*(dot(s, d)))));
 
-					return scaleColor(i, vec4(phongLighting(col, castShadowRay(p, push.lightDir, 1.0 / push.lightDir, maxDepth)), 1.0));
+					//return scaleColor(i, vec4(phongLighting(portalCol, castShadowRay(p, push.lightDir, 1.0 / push.lightDir, maxDepth)), 1.0));
+					return vec4(phongLighting(portalCol, castShadowRay(p, push.lightDir, 1.0 / push.lightDir, maxDepth)), 1.0);
 				} else {
 					// Copy pasta empty cell
 					t = escapeCubeDistance(s, d, invD) * scale;
@@ -325,13 +330,25 @@ vec4 castVoxelRay(vec3 p, vec3 d) {
 				}
 			} else {
 				gradient = cubeNorm(s);
-
 				p += projectToOutsideDistance(s) * scale;
-				return scaleColor(i, vec4(phongLighting(voxel.averageColour.xyz, castShadowRay(p, push.lightDir, 1.0 / push.lightDir, maxDepth)), 1.0));
+
+				//col += col + col + col + scaleColor(i, vec4(phongLighting(voxel.averageColour.xyz, castShadowRay(p, push.lightDir, 1.0 / push.lightDir, maxDepth)), 1.0));	// voxel.averageColour
+				col += col + col + col + vec4(phongLighting(voxel.averageColour.xyz, castShadowRay(p, push.lightDir, 1.0 / push.lightDir, maxDepth)), 1.0);	// voxel.averageColour
+				weight += weight + weight + weight + 1.0;
+
+				if((voxel.flags & 4) > 0 && reflections < 1) {
+					reflections += 1;
+					d -= 2.0*dot(d, gradient)*gradient;
+				} else {
+					return col/weight;
+					//return scaleColor(i, vec4(phongLighting(col.xyz/weight, castShadowRay(p, push.lightDir, 1.0 / push.lightDir, maxDepth)), 1.0));
+				}
 			}
 		}
 	} while(++i < maxIterations && insideCube(p));
-	return scaleColor(i, escapeColour(d));
+	col += col + col + col + escapeColour(d);
+	weight += weight + weight + weight + 1.0;
+	return col/weight;
 }
 
 //const float fov = (pi/1.775) / 2.0;
