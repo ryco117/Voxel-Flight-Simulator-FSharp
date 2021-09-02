@@ -33,7 +33,8 @@ layout(set = 0, binding = 0) readonly buffer VoxelOctree {
 const float pi = 3.14159265358;
 const float e = 2.718281828;
 const int maxIterations = 40;
-const float epsilon = 0.00025;
+const float maxIterationsF = float(maxIterations);
+const float epsilon = 0.00005;
 const float unitEpsilon = 1.0 + epsilon;
 const vec3 dirX = vec3(1.0, 0.0, 0.0);
 const vec3 dirY = vec3(0.0, 1.0, 0.0);
@@ -263,8 +264,8 @@ float castShadowRay(vec3 p, vec3 d, vec3 invD, int maxDepth) {
 const float maxBrightness = 1.3;
 const float maxBrightnessR2 = maxBrightness*maxBrightness;
 vec4 scaleColor(float si, vec4 col) {
-	float temp = 1.0 - si/float(maxIterations);
-	return mix(fogColour, col, temp*temp);
+	float temp = 1.0 - si/maxIterationsF;
+	return mix(fogColour, col, temp*temp*temp);
 }
 
 vec3 gradient;
@@ -320,8 +321,8 @@ vec4 castVoxelRay(vec3 p, vec3 d) {
 					vec3 portalCol = voxel.averageColour.xyz;
 					portalCol = mix(portalCol, vec3(0.0), min(colTemp, tan(8.0*push.time - 12.0*(dot(s, d)))));
 
-					//return scaleColor(i, vec4(phongLighting(portalCol, castShadowRay(p, push.lightDir, 1.0 / push.lightDir, maxDepth)), 1.0));
-					return vec4(phongLighting(portalCol, castShadowRay(p, push.lightDir, 1.0 / push.lightDir, maxDepth)), 1.0);
+					return scaleColor(i, vec4(phongLighting(portalCol, castShadowRay(p, push.lightDir, 1.0 / push.lightDir, maxDepth)), 1.0));
+					//return vec4(phongLighting(portalCol, castShadowRay(p, push.lightDir, 1.0 / push.lightDir, maxDepth)), 1.0);
 				} else {
 					// Copy pasta empty cell
 					t = escapeCubeDistance(s, d, invD) * scale;
@@ -340,15 +341,16 @@ vec4 castVoxelRay(vec3 p, vec3 d) {
 					reflections += 1;
 					d -= 2.0*dot(d, gradient)*gradient;
 				} else {
-					return col/weight;
-					//return scaleColor(i, vec4(phongLighting(col.xyz/weight, castShadowRay(p, push.lightDir, 1.0 / push.lightDir, maxDepth)), 1.0));
+					//return col/weight;
+					return scaleColor(i, vec4(phongLighting(col.xyz/weight, castShadowRay(p, push.lightDir, 1.0 / push.lightDir, maxDepth)), 1.0));
 				}
 			}
 		}
 	} while(++i < maxIterations && insideCube(p));
 	col += col + col + col + escapeColour(d);
 	weight += weight + weight + weight + 1.0;
-	return col/weight;
+	//return col/weight;
+	return scaleColor(i, col/weight);
 }
 
 //const float fov = (pi/1.775) / 2.0;
