@@ -201,6 +201,18 @@ type LightDevice (window: LightVulkanWindow) =
         commandBuffer.CmdCopyBuffer (srcBuffer, dstBuffer, copyRegion)
         endSingleTimeCommands commandBuffer
 
+    member self.CreateLocalBufferWithTransfer (buffSize: DeviceSize) (usage: BufferUsageFlags) (transferToPtr: nativeint -> unit) =
+        let stagingBuffer, stagingBufferMemory =
+            self.CreateBuffer buffSize BufferUsageFlags.TransferSrc (MemoryPropertyFlags.HostVisible + MemoryPropertyFlags.HostCoherent)
+        let memPtr = self.Device.MapMemory (stagingBufferMemory, deviceSizeZero, buffSize)
+        transferToPtr memPtr
+        self.Device.UnmapMemory stagingBufferMemory
+        let buffer, memory = self.CreateBuffer buffSize (usage + BufferUsageFlags.TransferDst) MemoryPropertyFlags.DeviceLocal
+        self.CopyBuffer stagingBuffer buffer buffSize
+        self.Device.DestroyBuffer stagingBuffer
+        self.Device.FreeMemory stagingBufferMemory
+        buffer, memory
+
     interface System.IDisposable with
         override _.Dispose () =
             if not disposed then

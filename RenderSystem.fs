@@ -48,17 +48,9 @@ type LightRenderSystem (device: LightDevice, initialRenderPass: RenderPass) =
     let mutable voxelData = createNewVoxelWorld (System.Random 0)
     let createVoxelBufferMemory (voxelData: VoxelCompact[]) =
         let voxelBufferDeviceSize = DeviceSize.op_Implicit (sizeof<VoxelCompact> * voxelData.Length)
-        let stagingBuffer, stagingBufferMemory =
-            device.CreateBuffer voxelBufferDeviceSize BufferUsageFlags.TransferSrc (MemoryPropertyFlags.HostVisible + MemoryPropertyFlags.HostCoherent)
-        let memPtr =
-            device.Device.MapMemory (stagingBufferMemory, Helpers.deviceSizeZero, voxelBufferDeviceSize)
-        Helpers.MarshalArrayOfStruct voxelData memPtr
-        device.Device.UnmapMemory stagingBufferMemory
+        let transferToPtr memPtr = Helpers.MarshalArrayOfStruct voxelData memPtr
         let storageBuffer, memory =
-            device.CreateBuffer voxelBufferDeviceSize (BufferUsageFlags.StorageBuffer + BufferUsageFlags.TransferDst) MemoryPropertyFlags.DeviceLocal
-        device.CopyBuffer stagingBuffer storageBuffer voxelBufferDeviceSize
-        device.Device.DestroyBuffer stagingBuffer
-        device.Device.FreeMemory stagingBufferMemory
+            device.CreateLocalBufferWithTransfer voxelBufferDeviceSize BufferUsageFlags.StorageBuffer transferToPtr
         storageBuffer, memory, voxelBufferDeviceSize
     let mutable voxelBuffer, voxelBufferMemory, voxelBufferDeviceSize = createVoxelBufferMemory voxelData
 

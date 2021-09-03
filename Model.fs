@@ -19,22 +19,14 @@ type LightModel (device: LightDevice, vertices: (float32*float32)[]) =
         let count = 2 * vertices.Length
         assert (count >= 3)
         let buffSize = DeviceSize.op_Implicit (sizeof<float32> * count)
-        let stagingBuffer, stagingBufferMemory =
-            device.CreateBuffer buffSize BufferUsageFlags.TransferSrc (MemoryPropertyFlags.HostVisible + MemoryPropertyFlags.HostCoherent)
-        let memPtr = device.Device.MapMemory (stagingBufferMemory, deviceSizeZero, buffSize)
-        let data = Array.init count (fun i ->
-            match i % 2 with
-            | 0 -> fst vertices.[i/2]
-            | 1 -> snd vertices.[i/2]
-            | e -> raise (System.ArithmeticException $"Modulo operator failed with impossibility %i{e}"))
-        Marshal.Copy (data, 0, memPtr, data.Length)
-        device.Device.UnmapMemory stagingBufferMemory
-        let buffer, memory =
-            device.CreateBuffer buffSize (BufferUsageFlags.VertexBuffer + BufferUsageFlags.TransferDst) MemoryPropertyFlags.DeviceLocal
-        device.CopyBuffer stagingBuffer buffer buffSize
-        device.Device.DestroyBuffer stagingBuffer
-        device.Device.FreeMemory stagingBufferMemory
-        buffer, memory
+        let transferToPtr (memPtr: nativeint) =
+            let data = Array.init count (fun i ->
+                match i % 2 with
+                | 0 -> fst vertices.[i/2]
+                | 1 -> snd vertices.[i/2]
+                | e -> raise (System.ArithmeticException $"Modulo operator failed with impossibility %i{e}"))
+            Marshal.Copy (data, 0, memPtr, data.Length)
+        device.CreateLocalBufferWithTransfer buffSize BufferUsageFlags.VertexBuffer transferToPtr
 
     member _.Bind (commandBuffer: CommandBuffer) =
         commandBuffer.CmdBindVertexBuffer (0u, vertexBuffer, deviceSizeZero)
